@@ -1,0 +1,102 @@
+{
+  "nodes": {
+    "armbian": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1786450706,
+        "narHash": "sha256-8CBuSOPqEyUYgHjxOEa87Bo3kM0gNA+n4Dki2zlK/EQ=",
+        "owner": "CybrixSystems",
+        "repo": "armbian-build",
+        "rev": "b673d05018528b6735408bd777f4e3bf33d5becf",
+        "type": "github"
+      },
+      "original": {
+        "owner": "CybrixSystems",
+        "repo": "armbian-build",
+        "rev": "b673d05018528b6735408bd777f4e3bf33d5becf",
+        "type": "github"
+      }
+    },
+    "jetpack-r35": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1787605940,
+        "narHash": "sha256-UJO7ZOKwNA/cJ4rLTL9uljM4M9lu7piQctO6uzw/dk8=",
+        "owner": "anduril",
+        "repo": "jetpack-nixos",
+        "rev": "cade3c198b8169ee7fd46dbdc283c714d9923951",
+        "type": "github"
+      },
+      "original": {
+        "owner": "anduril",
+        "repo": "jetpack-nixos",
+        "rev": "cade3c198b8169ee7fd46dbdc283c714d9923951",
+        "type": "github"
+      }
+    },
+    "jetpack-r36": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1771106805,
+        "narHash": "sha256-MF9EWZ8T7xc0Zxbnn0GmL54Rg11EreiSGDXX/EBykWg=",
+        "owner": "anduril",
+        "repo": "jetpack-nixos",
+        "rev": "98a83b7d737ed636439c7fdc628a875eaf4cce15",
+        "type": "github"
+      },
+      "original": {
+        "owner": "anduril",
+        "repo": "jetpack-nixos",
+        "rev": "98a83b7d737ed636439c7fdc628a875eaf4cce15",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1787640266,
+        "narHash": "sha256-MrkfE5hF5xx4L/0h5NyJ3xQkKVftwSuKSkFSrvlTxGY=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "f4f698677b11021a8f84f452e23ae9ef2427bec3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "f4f698677b11021a8f84f452e23ae9ef2427bec3",
+        "type": "github"
+      }
+    },
+    "nvidia-oot": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1772296147,
+        "narHash": "sha256-ygNgPSM0dWf5cZgxjPUT15JG9EtnGc4x+kGVrs/j1fg=",
+        "ref": "wip-r36.5-6.18",
+        "rev": "3428d01926de97ca8b0f25fe6edd9c76e19472a1",
+        "revCount": 17,
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/OE4T/nvidia-kernel-oot.git"
+      },
+      "original": {
+        "ref": "wip-r36.5-6.18",
+        "rev": "3428d01926de97ca8b0f25fe6edd9c76e19472a1",
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/OE4T/nvidia-kernel-oot.git"
+      }
+    },
+    "root": {
+      "inputs": {
+        "armbian": "armbian",
+        "jetpack-r35": "jetpack-r35",
+        "jetpack-r36": "jetpack-r36",
+        "nixpkgs": "nixpkgs",
+        "nvidia-oot": "nvidia-oot"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
