@@ -1,0 +1,32 @@
+From: jetson-nixos contributors
+Subject: [PATCH] host1x: allow the context bus without the in-tree driver
+
+The external host1x driver uses host1x_context_device_bus_type, but disabling
+the in-tree host1x driver also drops its selection of this hidden symbol.
+Give the existing context-bus option a prompt so an external-driver kernel
+can select it independently, without enabling a competing host1x driver.
+
+Keep the bus built in: drivers/iommu/iommu.c includes it in iommu_buses only
+when CONFIG_TEGRA_HOST1X_CONTEXT_BUS is enabled. Defining the missing symbol
+in the external module alone would not preserve IOMMU bus notifications.
+
+Target: Linux v6.18.46 drivers/gpu/host1x/Kconfig
+Upstream-Status: Pending
+SPDX-License-Identifier: GPL-2.0-only
+---
+--- a/drivers/gpu/host1x/Kconfig
++++ b/drivers/gpu/host1x/Kconfig
+@@ -1,7 +1,12 @@
+ # SPDX-License-Identifier: GPL-2.0-only
+ 
+ config TEGRA_HOST1X_CONTEXT_BUS
+-	bool
++	bool "Tegra host1x context device bus"
++	depends on ARCH_TEGRA || COMPILE_TEST
++	help
++	  Build the context device bus and its IOMMU integration independently
++	  of the in-tree host1x driver. Enable this when using an external
++	  host1x driver. The in-tree driver selects this automatically.
+ 
+ config TEGRA_HOST1X
+ 	tristate "NVIDIA Tegra host1x driver"

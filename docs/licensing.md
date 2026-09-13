@@ -17,10 +17,11 @@ not the patch bodies it references.
 | NVIDIA nvdisplay | Its [COPYING](https://github.com/OE4T/nv-kernel-display-driver/blob/f48baa7a63e596a239e18be2dfae300aaf74d55b/COPYING) describes MIT files except where otherwise noted and MIT/GPLv2 for the linked kernel module; preserve all applicable notices |
 | CUDA, L4T userspace, firmware | Separate NVIDIA terms. No project MIT or recipe license grants rights over those binaries |
 
-The OE4T superproject has no root LICENSE/COPYING file at the pinned revision.
-Its submodules' licenses are not a blanket license for copying the superproject's
-own scripts. This scaffold fetches the original tree; it does not vendor its
-build scripts. Review applicable terms before copying or adapting them.
+The OE4T superproject has no root LICENSE/COPYING file at the pinned revision,
+but its top-level Makefile has an SPDX BSD-3-Clause header. Per-file terms remain
+authoritative; submodule licenses are not a blanket license for unrelated files.
+This project fetches the original build scripts instead of vendoring them.
+The local Linux, host1x/BPMP, and nvgpu patches are GPL-2.0-only, not MIT.
 
 ## Rules for later imports and distribution
 

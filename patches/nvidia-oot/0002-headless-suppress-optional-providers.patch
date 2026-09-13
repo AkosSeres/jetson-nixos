@@ -1,0 +1,74 @@
+SPDX-FileCopyrightText: 2026 Akos Seres
+SPDX-License-Identifier: GPL-2.0-only
+
+Subject: [PATCH] nvidia-oot: omit non-headless provider subtrees
+
+The headless Xavier configuration retains the OOT GPU, host1x, memory,
+firmware, and platform drivers, while the mainline kernel owns the ordinary
+network, CEC, and crypto interfaces where enabled. Camera, audio, SPI, and
+VSE/SE support are outside this configuration and several of their module
+names overlap with mainline providers.
+
+Upstream-Status: Inappropriate [local provider-ownership policy]
+
+diff --git a/nvidia-oot/Makefile b/nvidia-oot/Makefile
+--- a/nvidia-oot/Makefile
++++ b/nvidia-oot/Makefile
+@@ -22,7 +22,9 @@
+ obj-m += drivers/
+ 
+ ifdef CONFIG_SND_SOC
++ifneq ($(NV_OOT_HEADLESS),y)
+ obj-m += sound/soc/tegra/
+ obj-m += sound/tegra-safety-audio/
+ obj-m += sound/soc/tegra-virt-alt/
++endif
+ endif
+diff --git a/nvidia-oot/drivers/crypto/Makefile b/nvidia-oot/drivers/crypto/Makefile
+--- a/nvidia-oot/drivers/crypto/Makefile
++++ b/nvidia-oot/drivers/crypto/Makefile
+@@ -2,10 +2,12 @@
+ # Copyright (c) 2022-2023, NVIDIA CORPORATION.  All rights reserved.
+ 
++ifneq ($(NV_OOT_HEADLESS),y)
+ ifdef CONFIG_TEGRA_HOST1X
+ obj-m += tegra-hv-vse-safety.o
+ obj-m += tegra-nvvse-cryptodev.o
+ ifdef CONFIG_CRYPTO_ENGINE
+ obj-m += tegra/
+ endif
+ endif
+ obj-m += tegra-se-nvrng.o
++endif
+diff --git a/nvidia-oot/drivers/media/Makefile b/nvidia-oot/drivers/media/Makefile
+--- a/nvidia-oot/drivers/media/Makefile
++++ b/nvidia-oot/drivers/media/Makefile
+@@ -14,5 +14,7 @@
+ subdir-ccflags-y += -DCONFIG_VIDEOBUF2_DMA_CONTIG
+ endif
+ 
++ifneq ($(NV_OOT_HEADLESS),y)
+ obj-m += i2c/
+ obj-m += platform/
++endif
+diff --git a/nvidia-oot/drivers/misc/Makefile b/nvidia-oot/drivers/misc/Makefile
+--- a/nvidia-oot/drivers/misc/Makefile
++++ b/nvidia-oot/drivers/misc/Makefile
+@@ -17,4 +17,6 @@
+ obj-m += bluedroid_pm.o
+ obj-m += nvscic2c-pcie/
+ obj-m += ioctl_example.o
++ifneq ($(NV_OOT_HEADLESS),y)
+ obj-m += tegra-cec/
++endif
+diff --git a/nvidia-oot/drivers/spi/Makefile b/nvidia-oot/drivers/spi/Makefile
+--- a/nvidia-oot/drivers/spi/Makefile
++++ b/nvidia-oot/drivers/spi/Makefile
+@@ -2,5 +2,7 @@
+ # Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ 
++ifneq ($(NV_OOT_HEADLESS),y)
+ obj-m += spi-aurix-tegra.o
+ obj-m += spi-tegra210-quad.o
+ obj-m += spi-tegra124-slave.o
++endif

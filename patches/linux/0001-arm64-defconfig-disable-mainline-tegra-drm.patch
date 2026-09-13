@@ -1,0 +1,20 @@
+From: jetson-nixos contributors
+Subject: [PATCH] arm64: defconfig: leave Tegra DRM to the external driver
+
+Nix's config generator reaches TEGRA_HOST1X before DRM_TEGRA. Starting
+with DRM_TEGRA=m prevents it from disabling host1x's reverse dependency.
+Remove the initial selection; the final config asserts both drivers are off.
+
+SPDX-License-Identifier: GPL-2.0-only
+---
+--- a/arch/arm64/configs/defconfig
++++ b/arch/arm64/configs/defconfig
+@@ -927,7 +927,7 @@
+ CONFIG_DRM_SUN8I_DW_HDMI=m
+ CONFIG_DRM_SUN8I_MIXER=m
+ CONFIG_DRM_MSM=m
+-CONFIG_DRM_TEGRA=m
++# CONFIG_DRM_TEGRA is not set
+ CONFIG_DRM_PANEL_BOE_TV101WUM_NL6=m
+ CONFIG_DRM_PANEL_LVDS=m
+ CONFIG_DRM_PANEL_SIMPLE=m

@@ -6,41 +6,74 @@ AGX Xavier (T194 / GV11B, `sm_72`). This is not an NVIDIA-supported Xavier BSP.
 
 ## Current status
 
-Source scaffold only. There is no kernel derivation, NVIDIA module build,
-userspace overlay, NixOS module, or bootable system output yet. No hardware or
-CUDA runtime validation has been performed with this repository.
+The experimental stack has booted and passed CUDA and container workload tests
+on two AGX Xavier systems. Full platform and sustained-workload validation is
+still incomplete. Do not deploy it over a running production kernel.
 
-The initial reproduction baseline is Linux **6.18.22**, the audited OE4T R36.5
+The current build candidate uses Linux **6.18.51**, the audited OE4T R36.5
 out-of-tree sources, R36.4.4 driver userspace, and selected R35.6.5 Xavier firmware.
-The old kernel point release is a comparison baseline, not the production target;
-a later step must update within 6.18 LTS and repeat validation before deployment.
+The community reference used 6.18.22; the completed hardware validation recorded
+below was performed on 6.18.46. Point releases remain explicitly pinned and must
+pass the full patch, build, and hardware validation gates.
 
-The first hardware milestone is headless CUDA, llama.cpp, NvMap accounting, and
+The first hardware milestone is headless CUDA, NvMap accounting, and
 GPU containers/K3s, with working networking, storage, and thermal control.
+llama.cpp is an optional later workload, not a first-milestone requirement.
 Display, camera, hardware video, TensorRT, and cuDNN are not first-milestone
 requirements; TensorRT/cuDNN remain possible follow-up work, not promised support.
 
-## Validate and fetch
+## Build and check
 
 On a Linux machine with Nix and flakes enabled:
 
 ```sh
-nix flake check
+nix flake check --no-build --all-systems
+nix build .#checks.x86_64-linux.source-manifest
+nix build .#checks.x86_64-linux.kernel-contract
+nix build .#checks.x86_64-linux.uefi-dtb
 nix build .#sources
-nix eval --json .#lib.linuxSource
-nix eval --json .#lib.patchSeries
+nix build .#nvidia-oot --max-jobs 1 --cores 6
 ```
 
-The first invocation fetches the locked inputs, including all eight NVIDIA
-submodules. `nix flake check` validates source layout and the 24 referenced patch
-files; it does **not** compile code or prove that patches apply.
-`nix build .#sources` additionally fetches and hash-checks the Linux archive.
-It creates a `result` symlink to a source bundle, not a kernel or system image.
-Neither command runs the Armbian installers or downloads CUDA/firmware packages.
+On x86_64, `kernel` and `nvidia-oot` cross-build for ARM64. On a Xavier those
+outputs build natively. The kernel contract builds and checks the generated
+configuration; it does not compile the kernel. `nvidia-oot` builds the kernel,
+DTBs, and external modules. It can take considerable time and disk space.
 
-Source packages and checks are exposed for `x86_64-linux` and `aarch64-linux`.
-The former supports development on a workstation; it does not imply x86 Jetson
-support or that cross-compilation has been implemented.
+CUDA userspace and `cuda-smoke` are **native aarch64** derivations, even when
+evaluated from x86. Build them on a native builder, with modest parallelism on
+an in-use Xavier:
+
+```sh
+nix build .#userspace .#firmware .#cuda-smoke --max-jobs 1 --cores 2
+```
+
+The smoke test allocates 4 MiB on the GPU and verifies a small kernel result.
+Run it only after booting the matching experimental system. Compilation does
+not prove driver/runtime compatibility. See [validation](docs/validation.md)
+for the evidence and remaining gates.
+
+`sources` remains a source-only bundle and never runs the Armbian installers.
+The firmware and userspace outputs fetch NVIDIA binaries under their own terms.
+
+## NixOS integration
+
+Import `inputs.jetson-nixos.nixosModules.xavier` and enable
+`hardware.jetson-xavier.enable`. Set `hardware.jetson-xavier.containers.enable`
+for matching CSV-based NVIDIA Container Toolkit integration. The module is
+limited to the AGX Xavier developer kit and does not flash firmware.
+
+It owns kernel/DTB/module selection, isolated CUDA 12.6 packages, R36.4.4 driver
+libraries, and selected R35.6.5 firmware. OOT owns host1x/tegra-drm; mainline owns
+BPMP and MC/EMC. A kernel-managed fan curve replaces vendor nvfancontrol.
+The final mainline DTB receives 64 KiB of padding for UEFI updates, after any
+NixOS overlays. This does not rebuild the kernel; the initial FDT boot failure
+and the padding candidate's validation status are recorded in the validation notes.
+
+Keep hostnames, disks, users, secrets, K3s policy, llama.cpp and boot selection
+in the consuming NixOS configuration. Add a separate experimental system output
+and preserve the existing production configuration. Never use `nixos-rebuild switch` to
+mix the new driver userspace with a running 5.10 kernel.
 
 ## Repository layout
 
@@ -48,22 +81,22 @@ support or that cross-compilation has been implemented.
 - `sources/linux.nix`: Linux release archive URL and SHA-256.
 - `sources/patches.nix`: ordered, upstream-relative patch inventories.
 - `pkgs/sources.nix`: source-only fetch/bundle outputs.
-- `checks/source-manifest.nix`: source presence and manifest checks.
+- `pkgs/kernel*.nix`, `pkgs/nvidia-oot.nix`: kernel/config/module packaging.
+- `overlays/`, `pkgs/userspace.nix`, `pkgs/firmware.nix`: isolated package scopes.
+- `modules/xavier.nix`: opt-in headless NixOS module.
+- `patches/`: local, separately licensed Linux/OOT adaptations.
+- `checks/`, `tests/`: source/config checks and the CUDA smoke test.
 - [Source provenance](docs/sources.md), [integration boundaries](docs/integration.md),
   and [licensing](docs/licensing.md).
-
-Kernel/OOT derivations and NixOS modules will be added in subsequent changes;
-there are no placeholder modules that silently select a kernel.
 
 ## Private repository access
 
 Use Git-based HTTPS when consuming this repository with the GitHub credential
-helper, for example during later infra integration:
+helper, for example after the implementation is published:
 
 ```nix
 inputs.jetson-nixos = {
   url = "git+https://github.com/AkosSeres/jetson-nixos.git?ref=main";
-  inputs.nixpkgs.follows = "nixpkgs-homelab";
 };
 ```
 
@@ -77,7 +110,7 @@ does not make copied store sources confidential.
 
 ## License
 
-Original code and documentation are MIT licensed; see [LICENSE](LICENSE).
+Original Nix code and documentation are MIT licensed; see [LICENSE](LICENSE).
 Upstream sources and patches retain their own terms. In particular, this license
 does not relicense Linux, NVIDIA drivers, CUDA, or firmware. See the
 [licensing notes](docs/licensing.md) before importing or distributing artifacts.

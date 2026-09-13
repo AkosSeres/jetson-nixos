@@ -8,13 +8,14 @@ hashes. The NVIDIA Git input additionally requests recursive submodules.
 
 | Input | Revision | Intended role |
 | --- | --- | --- |
-| [nixpkgs](https://github.com/NixOS/nixpkgs/commit/f4f698677b11021a8f84f452e23ae9ef2427bec3) | `f4f698677b11021a8f84f452e23ae9ef2427bec3` | Audited infra NixOS 26.05 homelab package set |
+| [nixpkgs](https://github.com/NixOS/nixpkgs/commit/f4f698677b11021a8f84f452e23ae9ef2427bec3) | `f4f698677b11021a8f84f452e23ae9ef2427bec3` | Audited NixOS 26.05 package set |
 | [armbian](https://github.com/CybrixSystems/armbian-build/commit/b673d05018528b6735408bd777f4e3bf33d5becf) | `b673d05018528b6735408bd777f4e3bf33d5becf` | CybrixSystems' Xavier patch and board reference |
 | [nvidia-oot](https://github.com/OE4T/nvidia-kernel-oot/commit/3428d01926de97ca8b0f25fe6edd9c76e19472a1) | `3428d01926de97ca8b0f25fe6edd9c76e19472a1` | OE4T R36.5 / Linux 6.18 OOT superproject |
 | [jetpack-r36](https://github.com/anduril/jetpack-nixos/commit/98a83b7d737ed636439c7fdc628a875eaf4cce15) | `98a83b7d737ed636439c7fdc628a875eaf4cce15` | JetPack 6.2.1 / L4T 36.4.4 package recipes |
 | [jetpack-r35](https://github.com/anduril/jetpack-nixos/commit/cade3c198b8169ee7fd46dbdc283c714d9923951) | `cade3c198b8169ee7fd46dbdc283c714d9923951` | JetPack 5.1.7 / L4T 35.6.5 firmware recipes |
 
-Both JetPack inputs are source-only, not imported flakes or active overlays.
+Both JetPack inputs are fetched as source-only inputs, not imported flakes.
+The experimental overlay imports R36's package-scope recipes explicitly.
 The R36 pin records CUDA 12.6.10 and driver 540.4.0; the R35 pin also contains
 newer generations that must not become the userspace source by accident.
 
@@ -26,13 +27,20 @@ runtime compatibility.
 
 ## Linux archive
 
-The reproduction version is `6.18.22`, recorded in
+The current build-candidate version is `6.18.51`, recorded in
 [`sources/linux.nix`](../sources/linux.nix).
 
-- [Release archive](https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.22.tar.xz)
+- [Release archive](https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.51.tar.xz)
 - [Publisher checksum list](https://cdn.kernel.org/pub/linux/kernel/v6.x/sha256sums.asc)
-- SHA-256: `a23c92faf3657385c2c6b5f4edd8f81b808907ebe603fa30699eae224da55f59`
-- Nix SRI: `sha256-ojyS+vNlc4XCxrX07dj4G4CJB+vmA/owaZ6uIk2lX1k=`
+- SHA-256: `ba2f60f858bf4d1f929101faa356c93dc8b925b17aaa9f95eabd4627758df613`
+- Nix SRI: `sha256-ui9g+Fi/TR+SkQH6o1bJPci5JbF6qp+V6r1GJ3WN9hM=`
+
+This was the current kernel.org 6.18 longterm release on 2026-09-13. It is an
+explicit reproducibility pin, not an automatic update mechanism. The community reference used `6.18.22` (archive
+SHA-256 `a23c92faf3657385c2c6b5f4edd8f81b808907ebe603fa30699eae224da55f59`).
+The reference patches and generated configuration were checked on that baseline
+before advancing to 6.18.46 and then 6.18.51; no complete 6.18.22 kernel build
+was performed.
 
 This is a hash of the compressed archive, not a recursive NAR hash.
 Fetching verifies the bytes against the recorded hash; it does not perform
@@ -62,15 +70,15 @@ repository itself.
 ## Reference patch inventories
 
 [`sources/patches.nix`](../sources/patches.nix) is the ordered, machine-readable
-inventory. Every path is relative to the locked Armbian source; no patch body is
-copied or applied by this scaffold. The inventory records the audited reference
+inventory. Every path is relative to the locked Armbian source; the kernel/OOT
+derivations apply these directly from that input. The inventory records the audited reference
 series, not a guarantee that every patch remains necessary after version changes.
 
 ### Linux: nine patches, 0004–0012
 
 Source directory:
 [`patch/kernel/archive/uefi-arm64-6.18`](https://github.com/CybrixSystems/armbian-build/tree/b673d05018528b6735408bd777f4e3bf33d5becf/patch/kernel/archive/uefi-arm64-6.18).
-These will target the Linux tree.
+These target the Linux tree.
 
 | Patch | Purpose |
 | --- | --- |
@@ -106,31 +114,71 @@ not Linux's old vendor-tree `nvidia/` directory.
 The audit found 0018 inert on 6.18.22 and needed on 6.18.46, and 0020 selecting
 different compatible paths on those releases. Patch 0019 protects both against
 an unavailable crypto API. Keep the conditional adaptations in the reproduction
-inventory; validate applicability again when implementing or updating.
+inventory; validate applicability again when implementing or updating. The full
+series is rechecked for every point-release pin, including 6.18.51.
 
-### Existing infra patches: migration decisions, not imported patches
+### Local patches
 
-Audit reference:
-[`akos/infra@0dbe1e87a0b998c4f10efafb53649ab5f4cc9606`](https://git.akos.cc/akos/infra/src/commit/0dbe1e87a0b998c4f10efafb53649ab5f4cc9606).
-These decisions apply to this experimental port only; they do not remove patches
-from the production 5.10 configuration.
+Local Linux patches run after the nine reference patches:
 
-| Existing patch | Decision for the reference build |
-| --- | --- |
-| `linux-memcg-data-kmem.patch` | Omit: the 6.18 kernel already has the relevant representation |
-| `tegra194-nvmap-account-backing-pages.patch` | Omit: the pinned OOT NvMap already uses `__GFP_ACCOUNT`; runtime accounting still needs testing |
-| `tegra194-nvmap-retry-colored-allocations.patch` | Omit while reference OOT coloring is disabled; the active noncolored allocator already retries |
-| `tegra194-nvgpu-fix-no-iommu-alloc-failure-unwind.patch` | Port in the OOT implementation step; the matching-free and partial-SG cleanup gaps remain |
-| `tegra194-nvgpu-pd-alloc-null-guards.patch` | Omit: the pinned allocation flow makes the old guard patch obsolete |
+- `patches/linux/0001-*` removes the initial defconfig Tegra DRM selection so
+  Nix's config generator can disable the mainline host1x provider.
+- `patches/linux/0002-*` adds CPU/GPU active fan trips at 45/60/75 C with 4 C
+  hysteresis, while preserving all critical shutdown temperatures.
+- `patches/linux/0003-*` makes the built-in host1x context bus independently
+  selectable, retaining IOMMU integration without the in-tree host1x driver.
 
-The colored allocator itself still lacks the retry. If coloring is intentionally
-re-enabled, adapt that patch to the OOT NvMap source and its four-argument helper
-before enabling it. This is not an upstream-fix claim.
+Local OOT patches run after the fifteen reference patches:
+
+- `patches/nvidia-oot/0001-*` omits the hypervisor-only BPMP module and preserves
+  the external host1x firewall when the in-tree host1x config is disabled.
+- `patches/nvidia-oot/0002-*` excludes optional camera, audio, SPI, VSE/SE and CEC
+  providers from the headless OOT build, avoiding overlaps with mainline modules.
+- `patches/nvgpu/0001-*` fixes matching-free and partial scatterlist cleanup in
+  the pinned nvgpu tree, retaining the original author's attribution.
+
+### Allocator behaviour in the pinned sources
+
+Linux 6.18 already has the memcg page representation required for accounted
+userspace mappings. The pinned OOT NvMap uses `__GFP_ACCOUNT`, so no accounting
+backport is applied. A CUDA-backed ML workload subsequently demonstrated cgroup
+charging and reclaim; broader limit and stress testing remains incomplete.
+
+NvMap page coloring is disabled in this reference configuration. The active
+noncolored allocator already retries failed allocations. The colored allocator
+still lacks that retry: review its four-argument allocation helper and failure
+cleanup before intentionally enabling coloring. The pinned nvgpu page-directory
+allocation flow already assigns its memory pointer only after successful
+allocation, so an additional legacy null-guard patch is unnecessary.
 
 The retained nvgpu fix belongs at
 `nvgpu/drivers/gpu/nvgpu/os/linux/linux-dma.c` in the superproject. The NvMap
 patches belong under `nvidia-oot/drivers/video/tegra/nvmap/`. No diagnostic kernel
-patches are planned.
+patches are carried.
+
+## UEFI DTB padding
+
+`pkgs/uefi-dtb.nix` uses the locked device-tree compiler to reserve 64 KiB in the
+final selected DTB. No additional source pin or firmware patch is introduced.
+
+- [systemd-boot 260.2 DTB installation](https://github.com/systemd/systemd/blob/v260.2/src/boot/devicetree.c)
+  allocates from the file size, optionally invokes the DT fixup protocol, then
+  installs the configuration table. Allocation alone does not enlarge the FDT
+  header's declared size.
+- NVIDIA's [UEFI DTB loader](https://github.com/NVIDIA/edk2-nvidia/blob/2be5d5da5df85a0c4637f4e6d41340db746dd735/Silicon/NVIDIA/Library/DxeDtPlatformDtbLoaderLib/DxeDtPlatformDtbKernelLoaderLib.c)
+  applies firmware-media overlays when a replacement FDT is installed. Its own
+  default-DTB allocation reserves extra space; the notification path does not
+  similarly expand a bootloader-supplied tree. This source is from the older
+  firmware family, not a verified exact match for the tested firmware binary.
+- A [first-hand Jetson report](https://forums.developer.nvidia.com/t/the-system-fails-to-boot-with-a-custom-dtb-with-jetpack-5-1-4-6-2/338578/10)
+  traces the same invalid-header message to overlay space exhaustion and reports
+  successful boot after adding padding. That Orin result is supporting evidence,
+  not proof that the Xavier trial failed for the identical reason.
+
+The original staged P2972 DTB was valid and byte-identical to its build output,
+but its 128,354-byte declared size ended exactly at the end of its strings block:
+zero free capacity. The padding candidate preserves its tree contents. Neither
+offline checks nor the source evidence establish successful hardware boot.
 
 ## Updating pins
 

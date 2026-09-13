@@ -1,0 +1,47 @@
+SPDX-FileCopyrightText: 2026 Akos Seres
+SPDX-License-Identifier: GPL-2.0-only
+
+Subject: [PATCH] tegra: enforce OOT graphics and mainline BPMP ownership
+
+The ordinary Tegra194 BPMP transport and its boot-critical clock, reset,
+and power-domain providers are supplied by the built-in mainline driver.
+The OOT tegra_bpmp module contains the hypervisor transport and only matches
+the tegra186-bpmp-hv and tegra194-safe-bpmp-hv compatibles.
+
+Allow non-hypervisor builds to omit that module without dropping ivc_ext,
+which is independently consumed by other OOT drivers.
+
+The same provider split disables the in-tree TEGRA_HOST1X option. Preserve
+its default security-firewall setting in the exclusive OOT host1x provider,
+where the dependent Kconfig symbol is otherwise unavailable.
+
+Upstream-Status: Inappropriate [local provider-ownership policy]
+
+diff --git a/nvidia-oot/drivers/firmware/tegra/Makefile b/nvidia-oot/drivers/firmware/tegra/Makefile
+--- a/nvidia-oot/drivers/firmware/tegra/Makefile
++++ b/nvidia-oot/drivers/firmware/tegra/Makefile
+@@ -8,7 +8,9 @@
+ obj-m		+= ivc_ext.o
++ifneq ($(NV_OOT_BPMP_SKIP_BUILD),y)
+ tegra_bpmp-y	+= ../../clk/tegra/clk-bpmp.o
+ tegra_bpmp-y	+= ../../reset/tegra/reset-bpmp.o
+ tegra_bpmp-y	+= ../../soc/tegra/powergate-bpmp.o
+ tegra_bpmp-$(CONFIG_DEBUG_FS)	+= bpmp-debugfs.o
+ tegra_bpmp-y	+= bpmp-tegra186-hv.o
+-obj-m 		+= tegra_bpmp.o
+\ No newline at end of file
++obj-m 		+= tegra_bpmp.o
++endif
+
+diff --git a/nvidia-oot/drivers/gpu/host1x/Makefile b/nvidia-oot/drivers/gpu/host1x/Makefile
+--- a/nvidia-oot/drivers/gpu/host1x/Makefile
++++ b/nvidia-oot/drivers/gpu/host1x/Makefile
+@@ -2,6 +2,8 @@
+ # SPDX-License-Identifier: GPL-2.0-only
+ # Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ 
++ccflags-y += -DCONFIG_TEGRA_HOST1X_FIREWALL
++
+ host1x-y = \
+ 	bus.o \
+ 	syncpt.o \
