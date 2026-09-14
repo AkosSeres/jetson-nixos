@@ -5,7 +5,7 @@
 
 - Linux was advanced from the hardware-validated 6.18.46 baseline to the current
   6.18.52 longterm point release. The archive hash was checked against the
-  kernel.org publisher checksum list. All eight reference and four local Linux
+  kernel.org publisher checksum list. All eight reference and five local Linux
   patches applied, and both the standalone kernel contract and the consuming
   trimmed headless contract passed. The latter contains 611 modular options
   compared with the 7,430-module broad baseline. Kernel/OOT/system compilation

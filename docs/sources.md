@@ -135,6 +135,9 @@ Local Linux patches run after the eight reference patches:
   before writing the TX ring. A controlled 15-minute K3s run on 6.18.51 stopped
   producing TX watchdogs when only TSO was disabled; this supports the fix but
   does not replace validation with TSO enabled on the patched kernel.
+- `patches/linux/0005-*` adapts upstream commit `a5d946466a95`, unwinding DMA
+  mappings and partially prepared descriptors when mapping a later TSO fragment
+  fails. No such failure was logged during the observed Xavier watchdogs.
 
 Local OOT patches run after the fifteen reference patches:
 

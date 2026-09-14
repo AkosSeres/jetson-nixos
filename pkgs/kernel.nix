@@ -39,6 +39,10 @@ pkgs.buildLinux {
         name = "stmmac-tso-descriptor-availability";
         patch = ../patches/linux/0004-net-stmmac-fix-tso-descriptor-availability-check.patch;
       }
+      {
+        name = "stmmac-tso-dma-mapping-unwind";
+        patch = ../patches/linux/0005-net-stmmac-fix-dma-mapping-leak-in-tso-xmit.patch;
+      }
     ];
   structuredExtraConfig = import ./kernel-config.nix { inherit (pkgs) lib; };
 }
