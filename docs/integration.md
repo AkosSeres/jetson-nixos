@@ -77,8 +77,10 @@ requires the node service; creating the nodes alone does not prove a working GPU
 - Do not bring the production Realtek backport into 6.18 by default. Evaluate the
   in-tree driver if a relevant USB adapter is actually needed.
 - Follow the local-patch migration decisions in [sources.md](sources.md).
-- The current build candidate uses 6.18.51 after reference patch/config checks
-  on 6.18.22 and completed hardware validation on 6.18.46. Check point-release
+- The current build candidate uses 6.18.52 after reference patch/config checks
+  on 6.18.22 and initial hardware validation on 6.18.46. Sustained K3s traffic
+  on 6.18.51 exposed an upstream stmmac TSO descriptor-accounting bug; the
+  6.18.52 candidate carries the exact adapted upstream fix. Check point-release
   updates and APIs explicitly; this is not a rolling security pin.
 
 ## Thermal and power policy

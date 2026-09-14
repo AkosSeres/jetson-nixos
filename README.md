@@ -10,11 +10,12 @@ The experimental stack has booted and passed CUDA and container workload tests
 on two AGX Xavier systems. Full platform and sustained-workload validation is
 still incomplete. Do not deploy it over a running production kernel.
 
-The current build candidate uses Linux **6.18.51**, the audited OE4T R36.5
+The current build candidate uses Linux **6.18.52**, the audited OE4T R36.5
 out-of-tree sources, R36.4.4 driver userspace, and selected R35.6.5 Xavier firmware.
-The community reference used 6.18.22; the completed hardware validation recorded
-below was performed on 6.18.46. Point releases remain explicitly pinned and must
-pass the full patch, build, and hardware validation gates.
+The community reference used 6.18.22. Linux 6.18.46 passed the initial hardware
+validation; sustained K3s traffic on 6.18.51 exposed an upstream stmmac TSO ring
+accounting bug now backported to the 6.18.52 candidate. Point releases remain
+explicitly pinned and must pass the full patch, build, and hardware validation gates.
 
 The first hardware milestone is headless CUDA, NvMap accounting, and
 GPU containers/K3s, with working networking, storage, and thermal control.

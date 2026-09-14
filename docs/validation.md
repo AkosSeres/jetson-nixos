@@ -1,18 +1,18 @@
 <!-- SPDX-License-Identifier: MIT -->
 # Validation record and trial boundary
 
-## Build evidence (2026-09-13, implementation in progress)
+## Build evidence (2026-09-14, implementation in progress)
 
 - Linux was advanced from the hardware-validated 6.18.46 baseline to the current
-  6.18.51 longterm point release. The archive hash was checked against the
-  kernel.org publisher checksum list. All nine reference and three local Linux
+  6.18.52 longterm point release. The archive hash was checked against the
+  kernel.org publisher checksum list. All eight reference and four local Linux
   patches applied, and both the standalone kernel contract and the consuming
   trimmed headless contract passed. The latter contains 611 modular options
   compared with the 7,430-module broad baseline. Kernel/OOT/system compilation
-  and runtime validation for 6.18.51 remain pending; the existing evidence below
-  remains evidence for 6.18.46 unless stated otherwise.
+  and runtime validation for 6.18.52 remain pending; evidence below names the
+  exact version tested.
 - Source revisions, recursive gitlinks and ordered patch presence checked.
-- All nine reference Linux patches applied and a strict ARM64 configuration
+- All eight reference Linux patches applied and a strict ARM64 configuration
   generated on 6.18.22, then on 6.18.46.
 - The 6.18.46 kernel contract check passed, including NvMap prerequisites,
   exclusive host1x/DRM ownership, BPMP, storage, Ethernet and container support.
@@ -72,6 +72,14 @@
   llama.cpp is deferred as optional follow-up work. No successful full llama.cpp
   build or execution is claimed.
 - The fan DT patch compiled separately; critical trip thresholds were checked.
+- Linux 6.18.51 subsequently built and booted on both Xavier nodes. CUDA, NvMap
+  accounting and K3s workloads worked, but sustained network traffic eventually
+  caused stmmac TX watchdog resets. A controlled 15-minute retest on the same
+  node and workload, changing only TCP TSO to off, completed with the node Ready
+  and no new watchdog or adapter reset. Linux 6.18.52 includes the stable
+  page-pool teardown fix and this candidate additionally backports upstream
+  commit `5e38d732ec67`, which corrects fragmented-TSO descriptor accounting.
+  Hardware validation with TSO enabled on that patched kernel is still pending.
 
 These build-only checks do not establish bootability, CUDA runtime compatibility,
 thermal behaviour, working CDI devices, or sustained NvMap accounting. The
