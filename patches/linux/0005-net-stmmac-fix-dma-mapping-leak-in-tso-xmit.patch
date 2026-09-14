@@ -25,9 +25,10 @@ Signed-off-by: Akos Seres <akos@akos.cc>
  1 file changed, 35 insertions(+), 19 deletions(-)
 
 diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+index ee2077f..f85ebf2 100644
 --- a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
 +++ b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
-@@ -4068,6 +4068,7 @@ static bool stmmac_vlan_insert(struct stmmac_priv *priv, struct sk_buff *skb,
+@@ -4082,6 +4082,7 @@ static bool stmmac_vlan_insert(struct stmmac_priv *priv, struct sk_buff *skb,
  /**
   *  stmmac_tso_allocator - close entry point of the driver
   *  @priv: driver private structure
@@ -35,7 +36,7 @@ diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/eth
   *  @des: buffer start address
   *  @total_len: total length to fill in descriptors
   *  @last_segment: condition for the last descriptor
-@@ -4076,8 +4077,9 @@ static bool stmmac_vlan_insert(struct stmmac_priv *priv, struct sk_buff *skb,
+@@ -4090,8 +4091,9 @@ static bool stmmac_vlan_insert(struct stmmac_priv *priv, struct sk_buff *skb,
   *  This function fills descriptor and request new descriptors according to
   *  buffer length to fill
   */
@@ -47,7 +48,7 @@ diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/eth
  {
  	struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[queue];
  	struct dma_desc *desc;
-@@ -4089,14 +4091,13 @@ static void stmmac_tso_allocator(struct stmmac_priv *priv, dma_addr_t des,
+@@ -4103,14 +4105,13 @@ static void stmmac_tso_allocator(struct stmmac_priv *priv, dma_addr_t des,
  	while (tmp_len > 0) {
  		dma_addr_t curr_addr;
  
@@ -66,7 +67,7 @@ diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/eth
  
  		curr_addr = des + (total_len - tmp_len);
  		stmmac_set_desc_addr(priv, desc, curr_addr);
-@@ -4200,7 +4201,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
+@@ -4209,7 +4210,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
  {
  	struct dma_desc *desc, *first, *mss_desc = NULL;
  	struct stmmac_priv *priv = netdev_priv(dev);
@@ -75,7 +76,7 @@ diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/eth
  	struct stmmac_txq_stats *txq_stats;
  	struct stmmac_tx_queue *tx_q;
  	u32 pay_len, mss, queue;
-@@ -4264,18 +4265,20 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
+@@ -4285,22 +4286,24 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
  	}
  
  	first_entry = tx_q->cur_tx;
@@ -105,7 +106,7 @@ diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/eth
  			     (nfrags == 0), queue);
  
  	/* In case two or more DMA transmit descriptors are allocated for this
-@@ -4290,10 +4293,10 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
+@@ -4315,10 +4318,10 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
  	 * this DMA buffer right after the DMA engine completely finishes the
  	 * full buffer transmission.
  	 */
@@ -120,7 +121,7 @@ diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/eth
  
  	/* Prepare fragments */
  	for (i = 0; i < nfrags; i++) {
-@@ -4304,17 +4307,18 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
+@@ -4328,16 +4331,17 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
  				       skb_frag_size(frag),
  				       DMA_TO_DEVICE);
  		if (dma_mapping_error(priv->device, des))
@@ -144,7 +145,7 @@ diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/eth
  
  	tx_q->tx_skbuff_dma[tx_q->cur_tx].last_segment = true;
  
-@@ -4418,7 +4422,19 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
+@@ -4434,7 +4438,19 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
  
  	return NETDEV_TX_OK;
  
