@@ -74,7 +74,7 @@ inventory. Every path is relative to the locked Armbian source; the kernel/OOT
 derivations apply these directly from that input. The inventory records the audited reference
 series, not a guarantee that every patch remains necessary after version changes.
 
-### Linux: nine patches, 0004–0012
+### Linux: eight patches, 0004–0011
 
 Source directory:
 [`patch/kernel/archive/uefi-arm64-6.18`](https://github.com/CybrixSystems/armbian-build/tree/b673d05018528b6735408bd777f4e3bf33d5becf/patch/kernel/archive/uefi-arm64-6.18).
@@ -90,9 +90,12 @@ These target the Linux tree.
 | 0009 | EMC clock floor from interconnect requests |
 | 0010 | EQOS interconnect bandwidth requests |
 | 0011 | RX buffer-exhaustion recovery |
-| 0012 | EQOS multi-queue device-tree configuration |
 
 The unrelated HiKey960 and Phytium patches in the same directory are excluded.
+The reference series' EQOS multi-queue patch is also excluded: NVIDIA's Xavier
+platform device tree deliberately overrides the Tegra194 hardware's four DMA
+channels with a single DMA channel and MTL queue, and sustained-load testing of
+the four-queue configuration produced a TX watchdog timeout on queue 3.
 
 ### OOT: fifteen patches, 0006–0020
 
