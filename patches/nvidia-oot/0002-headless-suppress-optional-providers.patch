@@ -5,12 +5,25 @@ Subject: [PATCH] nvidia-oot: omit non-headless provider subtrees
 
 The headless Xavier configuration retains the OOT GPU, host1x, memory,
 firmware, and platform drivers, while the mainline kernel owns the ordinary
-network, CEC, and crypto interfaces where enabled. Camera, audio, SPI, and
-VSE/SE support are outside this configuration and several of their module
-names overlap with mainline providers.
+network, CEC, watchdog, and crypto interfaces where enabled. Camera, audio,
+SPI, vendor watchdog, and VSE/SE support are outside this configuration and
+several of their module names overlap with mainline providers. Mainline's
+Tegra186 timer supplies the Xavier watchdog.
 
 Upstream-Status: Inappropriate [local provider-ownership policy]
 
+diff --git a/nvidia-oot/drivers/Makefile b/nvidia-oot/drivers/Makefile
+--- a/nvidia-oot/drivers/Makefile
++++ b/nvidia-oot/drivers/Makefile
+@@ -75,6 +75,8 @@ ifdef CONFIG_I2C
+ obj-m += thermal/
+ endif
++ifneq ($(NV_OOT_HEADLESS),y)
+ obj-m += watchdog/
++endif
+ ifdef CONFIG_TEGRA_HOST1X
+ obj-m += video/tegra/
+ endif
 diff --git a/nvidia-oot/Makefile b/nvidia-oot/Makefile
 --- a/nvidia-oot/Makefile
 +++ b/nvidia-oot/Makefile
