@@ -15,6 +15,7 @@ in
     "0009-memory-tegra186-emc-honor-icc-requests-as-emc-clock-floor.patch"
     "0010-net-stmmac-dwc-qos-request-interconnect-bandwidth-on-tegra.patch"
     "0011-net-stmmac-prevent-indefinite-rx-stall-on-buffer-exhaustion.patch"
+    "0012-arm64-dts-tegra194-enable-eqos-multi-queue.patch"
   ];
 
   # Apply relative to the superproject root, not the Linux source tree.

@@ -36,7 +36,7 @@ let
     }
   );
 in
-assert builtins.length patchSeries.linux == 8;
+assert builtins.length patchSeries.linux == 9;
 assert builtins.length patchSeries.nvidia-oot == 15;
 assert builtins.length patches == builtins.length (lib.unique patches);
 assert lib.all (name: builtins.match "[0-9a-f]{40}" inputs.${name}.rev != null) sourceNames;
