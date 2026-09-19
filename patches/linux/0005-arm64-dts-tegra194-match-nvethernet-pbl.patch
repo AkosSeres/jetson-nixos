@@ -1,0 +1,16 @@
+diff --git a/arch/arm64/boot/dts/nvidia/tegra194.dtsi b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+index 7dd1b1989..da89d547a 100644
+--- a/arch/arm64/boot/dts/nvidia/tegra194.dtsi
++++ b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+@@ -175,8 +175,9 @@ ethernet@2490000 {
+ 			snps,write-requests = <16>;
+ 			snps,read-requests = <16>;
+ 			snps,burst-map = <0x7>;
+-			snps,txpbl = <16>;
+-			snps,rxpbl = <8>;
++			/* Match NVIDIA nvethernet's Tegra194 EQOS PBL programming. */
++			snps,txpbl = <32>;
++			snps,rxpbl = <12>;
+ 			snps,mtl-rx-config = <&eqos_mtl_rx_setup>;
+ 			snps,mtl-tx-config = <&eqos_mtl_tx_setup>;
+ 

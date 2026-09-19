@@ -1,16 +1,13 @@
 <!-- SPDX-License-Identifier: MIT -->
 # Validation record and trial boundary
 
-## Build evidence (2026-09-13, implementation in progress)
+## Build evidence (2026-09-13 onward)
 
-- Linux was advanced from the hardware-validated 6.18.46 baseline to the current
-  6.18.51 longterm point release. The archive hash was checked against the
-  kernel.org publisher checksum list. All nine reference and three local Linux
-  patches applied, and both the standalone kernel contract and the consuming
-  trimmed headless contract passed. The latter contains 611 modular options
-  compared with the 7,430-module broad baseline. Kernel/OOT/system compilation
-  and runtime validation for 6.18.51 remain pending; the existing evidence below
-  remains evidence for 6.18.46 unless stated otherwise.
+- Linux 6.18.46 is the current known-good baseline. All nine reference patches
+  and the local Xavier patches apply to this exact source pin. The reusable
+  kernel contract and the consuming infra contract validate different layers:
+  this repository owns Xavier/CUDA/provider requirements, while consumers may
+  add workload-specific kernel policy without changing the platform baseline.
 - Source revisions, recursive gitlinks and ordered patch presence checked.
 - All nine reference Linux patches applied and a strict ARM64 configuration
   generated on 6.18.22, then on 6.18.46.
@@ -146,6 +143,39 @@ A consuming profile also enabled the audited firewall and network-policy
 modules. Firewall startup, K3s networking, node readiness, and encrypted
 Longhorn V1 volumes recovered successfully after boot. Those workload-policy
 choices remain outside this reusable repository.
+
+## Validated EQOS baseline (2026-09-19)
+
+A consuming AGX Xavier configuration booted Linux 6.18.46 with the reusable
+Armbian four-queue DT configuration and the NVIDIA-derived TX/DMA defaults now
+owned by this repository. The validated runtime state was:
+
+- four RX and four TX DMA/MTL queues;
+- the single shared EQOS MAC interrupt (no per-queue IRQ experiment);
+- hardware TSO, GSO and GRO enabled;
+- TX ring size 1024 descriptors;
+- TX coalescing 256 microseconds / 5 frames;
+- Tegra194 EQOS PBL TX 32 and RX 12 with PBLx8;
+- normal 1 Gbit/s full-duplex link, DHCP and K3s node readiness.
+
+The configuration remained healthy under ordinary cluster traffic through the
+observation window before being promoted into this reusable baseline. This is
+evidence for the exact 6.18.46 configuration above, not for later point releases,
+single-queue experiments, or the reverted per-channel IRQ experiments.
+
+For a runtime parity check after a consumer update, verify at minimum:
+
+```sh
+ethtool -l end0
+ethtool -g end0
+ethtool -c end0
+ethtool -k end0
+grep -Ei 'end0|stmmac' /proc/interrupts
+```
+
+Expected TX values are ring `1024`, `tx-usecs 256`, `tx-frames 5`, TSO enabled,
+and a single shared `end0` GIC interrupt. Consumer-specific MAC address, K3s,
+swap, storage and network-policy choices are outside this repository.
 
 ## Before each new kernel trial
 

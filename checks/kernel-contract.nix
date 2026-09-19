@@ -18,7 +18,9 @@ let
     TEGRA_MC = "y";
     INTERCONNECT = "y";
     STMMAC_ETH = "y";
+    STMMAC_PLATFORM = "y";
     DWMAC_DWC_QOS_ETH = "y";
+    MARVELL_PHY = "y";
     PCIE_TEGRA194_HOST = "m";
     PHY_TEGRA194_P2U = "m";
     BLK_DEV_NVME = "m";
@@ -55,6 +57,7 @@ let
     SENSORS_PWM_FAN = "y";
   };
 in
+assert kernel.version == "6.18.46";
 pkgs.runCommand "xavier-kernel-contract-${kernel.version}" { } ''
   ${lib.concatStringsSep "\n" (
     lib.mapAttrsToList (name: value: ''

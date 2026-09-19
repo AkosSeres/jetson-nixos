@@ -27,20 +27,20 @@ runtime compatibility.
 
 ## Linux archive
 
-The current build-candidate version is `6.18.51`, recorded in
+The known-good version is `6.18.46`, recorded in
 [`sources/linux.nix`](../sources/linux.nix).
 
-- [Release archive](https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.51.tar.xz)
+- [Release archive](https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.46.tar.xz)
 - [Publisher checksum list](https://cdn.kernel.org/pub/linux/kernel/v6.x/sha256sums.asc)
-- SHA-256: `ba2f60f858bf4d1f929101faa356c93dc8b925b17aaa9f95eabd4627758df613`
-- Nix SRI: `sha256-ui9g+Fi/TR+SkQH6o1bJPci5JbF6qp+V6r1GJ3WN9hM=`
+- SHA-256: `f5d44b93808b02cc2969c5404ba081d97523719c9fd2ba2de6db318b4141cca0`
+- Nix SRI: `sha256-9dRLk4CLAswpacVAS6CB2XUjcZyf0rot5tsxi0FBzKA=`
 
-This was the current kernel.org 6.18 longterm release on 2026-09-13. It is an
-explicit reproducibility pin, not an automatic update mechanism. The community reference used `6.18.22` (archive
-SHA-256 `a23c92faf3657385c2c6b5f4edd8f81b808907ebe603fa30699eae224da55f59`).
+This is an explicit reproducibility pin, not an automatic update mechanism. The
+community reference used `6.18.22` (archive SHA-256
+`a23c92faf3657385c2c6b5f4edd8f81b808907ebe603fa30699eae224da55f59`).
 The reference patches and generated configuration were checked on that baseline
-before advancing to 6.18.46 and then 6.18.51; no complete 6.18.22 kernel build
-was performed.
+before moving to 6.18.46. Later 6.18.51/6.18.52 experiments are not part of this
+known-good baseline.
 
 This is a hash of the compressed archive, not a recursive NAR hash.
 Fetching verifies the bytes against the recorded hash; it does not perform
@@ -114,8 +114,7 @@ not Linux's old vendor-tree `nvidia/` directory.
 The audit found 0018 inert on 6.18.22 and needed on 6.18.46, and 0020 selecting
 different compatible paths on those releases. Patch 0019 protects both against
 an unavailable crypto API. Keep the conditional adaptations in the reproduction
-inventory; validate applicability again when implementing or updating. The full
-series is rechecked for every point-release pin, including 6.18.51.
+inventory; validate applicability again when implementing or updating.
 
 ### Local patches
 
@@ -127,6 +126,11 @@ Local Linux patches run after the nine reference patches:
   hysteresis, while preserving all critical shutdown temperatures.
 - `patches/linux/0003-*` makes the built-in host1x context bus independently
   selectable, retaining IOMMU integration without the in-tree host1x driver.
+- `patches/linux/0004-*` sets Tegra194 stmmac's default TX ring to 1024
+  descriptors and TX completion cadence to 256 microseconds / 5 frames, matching
+  the validated NVIDIA nvethernet policy while retaining the shared-IRQ topology.
+- `patches/linux/0005-*` sets Tegra194 EQOS PBL to TX 32 and RX 12 with PBLx8,
+  matching the validated nvethernet DMA policy.
 
 Local OOT patches run after the fifteen reference patches:
 

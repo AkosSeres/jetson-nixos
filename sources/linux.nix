@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
 {
-  # Track the current 6.18 longterm point release explicitly. The community
-  # reference used 6.18.22; each point update still requires patch, build, and
-  # hardware validation for this experimental Xavier port.
-  version = "6.18.51";
-  url = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.51.tar.xz";
-  hash = "sha256-ui9g+Fi/TR+SkQH6o1bJPci5JbF6qp+V6r1GJ3WN9hM=";
+  # Keep the exact point release validated on both AGX Xavier nodes. Point
+  # updates are separate experiments and must pass patch, build, boot, CUDA,
+  # networking, and sustained-workload validation before replacing this pin.
+  version = "6.18.46";
+  url = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.46.tar.xz";
+  hash = "sha256-9dRLk4CLAswpacVAS6CB2XUjcZyf0rot5tsxi0FBzKA=";
 }

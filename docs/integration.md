@@ -77,9 +77,10 @@ requires the node service; creating the nodes alone does not prove a working GPU
 - Do not bring the production Realtek backport into 6.18 by default. Evaluate the
   in-tree driver if a relevant USB adapter is actually needed.
 - Follow the local-patch migration decisions in [sources.md](sources.md).
-- The current build candidate uses 6.18.51 after reference patch/config checks
-  on 6.18.22 and completed hardware validation on 6.18.46. Check point-release
-  updates and APIs explicitly; this is not a rolling security pin.
+- The reusable baseline is pinned to the hardware-validated Linux 6.18.46.
+  Point-release updates are separate experiments: check patch applicability,
+  build outputs, bootability, CUDA, networking and sustained traffic explicitly.
+  This is not a rolling security pin.
 
 ## Thermal and power policy
 

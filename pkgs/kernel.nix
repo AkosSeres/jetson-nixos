@@ -35,6 +35,14 @@ pkgs.buildLinux {
         name = "host1x-external-context-bus";
         patch = ../patches/linux/0003-host1x-allow-context-bus-with-external-driver.patch;
       }
+      {
+        name = "tegra194-eqos-nvethernet-tx-defaults";
+        patch = ../patches/linux/0004-net-stmmac-tegra194-match-nvethernet-tx-defaults.patch;
+      }
+      {
+        name = "tegra194-eqos-nvethernet-pbl";
+        patch = ../patches/linux/0005-arm64-dts-tegra194-match-nvethernet-pbl.patch;
+      }
     ];
   structuredExtraConfig = import ./kernel-config.nix { inherit (pkgs) lib; };
 }
