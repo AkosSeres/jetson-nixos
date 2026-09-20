@@ -1,0 +1,92 @@
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Subject: [PATCH] nvdisplay: adapt to pci_resize_resource() exclude_bars argument
+
+Upstream commit 337b1b566db08 ("PCI: Fix restoring BARs on BAR resize
+rollback path"), mainline v6.19 and backported to stable v6.18.40,
+added a fourth argument to pci_resize_resource(): exclude_bars, a mask
+of BARs that must NOT be released while the kernel now releases the
+device resources sharing the bridge window by itself (previously the
+caller had to release them, which nv-pci.c already does for BAR1/BAR3).
+
+The reference Yocto build uses 6.18.22 (3-argument API) so it still
+compiles there; Armbian ships 6.18.43 and the nvdisplay build dies with:
+
+  nvidia/nv-pci.c:219:9: error: too few arguments to function
+  'pci_resize_resource'; expected 4, have 3
+
+Detect the new signature with a conftest arity probe instead of a
+LINUX_VERSION_CODE check: the change lives in a stable branch, so any
+distro kernel may or may not carry the backport regardless of version
+number, and the tree already keys every other kernel-API difference off
+conftest. Pass exclude_bars = 0 (nothing to protect), which preserves
+the pre-change behavior.
+
+Upstream-Status: Pending [applicable to OE4T/nv-kernel-display-driver wip-r36.5-take-2]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+
+diff --git a/nvdisplay/kernel-open/conftest.sh b/nvdisplay/kernel-open/conftest.sh
+index 26a737e..5e5d73a 100644
+--- a/nvdisplay/kernel-open/conftest.sh
++++ b/nvdisplay/kernel-open/conftest.sh
+@@ -6192,6 +6192,25 @@ compile_test() {
+             compile_check_conftest "$CODE" "NV_PCI_REBAR_GET_POSSIBLE_SIZES_PRESENT" "" "functions"
+         ;;
+ 
++        pci_resize_resource_has_exclude_bars_arg)
++            #
++            # Determine if pci_resize_resource() has the exclude_bars
++            # argument.
++            #
++            # Added by commit 337b1b566db08 ("PCI: Fix restoring BARs on
++            # BAR resize rollback path") in v6.19, backported to stable
++            # v6.18.40.
++            #
++            CODE="
++            #include <linux/pci.h>
++            int pci_resize_resource(struct pci_dev *dev, int i, int size,
++                                    int exclude_bars) {
++                return 0;
++            }"
++
++            compile_check_conftest "$CODE" "NV_PCI_RESIZE_RESOURCE_HAS_EXCLUDE_BARS_ARG" "" "types"
++        ;;
++
+         wait_for_random_bytes)
+             #
+             # Determine if the wait_for_random_bytes() function is present.
+diff --git a/nvdisplay/kernel-open/nvidia/nv-pci.c b/nvdisplay/kernel-open/nvidia/nv-pci.c
+index ad2bfee..a400e9d 100644
+--- a/nvdisplay/kernel-open/nvidia/nv-pci.c
++++ b/nvdisplay/kernel-open/nvidia/nv-pci.c
+@@ -216,7 +216,19 @@ static int nv_resize_pcie_bars(struct pci_dev *pci_dev) {
+ 
+ resize:
+     /* Attempt to resize BAR1 to the largest supported size */
++#if defined(NV_PCI_RESIZE_RESOURCE_HAS_EXCLUDE_BARS_ARG)
++    /*
++     * Since commit 337b1b566db08 ("PCI: Fix restoring BARs on BAR resize
++     * rollback path", v6.19, stable v6.18.40) pci_resize_resource()
++     * releases the device resources sharing the bridge window by itself;
++     * exclude_bars is a mask of BARs that must NOT be released. We
++     * already released BAR1/BAR3 above and have nothing to protect, so
++     * pass 0 to keep the pre-change behavior.
++     */
++    r = pci_resize_resource(pci_dev, NV_GPU_BAR1, requested_size, 0);
++#else
+     r = pci_resize_resource(pci_dev, NV_GPU_BAR1, requested_size);
++#endif
+ 
+     if (r) {
+         if (r == -ENOSPC)
+diff --git a/nvdisplay/kernel-open/nvidia/nvidia.Kbuild b/nvdisplay/kernel-open/nvidia/nvidia.Kbuild
+index 5d33def..a867870 100644
+--- a/nvdisplay/kernel-open/nvidia/nvidia.Kbuild
++++ b/nvdisplay/kernel-open/nvidia/nvidia.Kbuild
+@@ -249,6 +249,7 @@ NV_CONFTEST_TYPE_COMPILE_TESTS += remove_memory_has_nid_arg
+ NV_CONFTEST_TYPE_COMPILE_TESTS += add_memory_driver_managed_has_mhp_flags_arg
+ NV_CONFTEST_TYPE_COMPILE_TESTS += num_registered_fb
+ NV_CONFTEST_TYPE_COMPILE_TESTS += pci_driver_has_driver_managed_dma
++NV_CONFTEST_TYPE_COMPILE_TESTS += pci_resize_resource_has_exclude_bars_arg
+ NV_CONFTEST_TYPE_COMPILE_TESTS += vm_area_struct_has_const_vm_flags
+ NV_CONFTEST_TYPE_COMPILE_TESTS += memory_failure_has_trapno_arg
+ NV_CONFTEST_TYPE_COMPILE_TESTS += of_property_for_each_u32_has_internal_args

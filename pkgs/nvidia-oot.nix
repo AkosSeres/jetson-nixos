@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-2.0-only
 {
   pkgs,
   kernel,
@@ -29,7 +29,7 @@ kernel.stdenv.mkDerivation {
   # nvdisplay, and hwpm gitlinks are all present at their locked revisions.
   src = inputs.nvidia-oot;
 
-  patches = map (path: "${inputs.armbian}/${path}") patchSeries.nvidia-oot ++ [
+  patches = map (path: ../. + "/${path}") patchSeries.nvidia-oot ++ [
     ../patches/nvidia-oot/0001-firmware-tegra-make-hv-bpmp-optional.patch
     ../patches/nvidia-oot/0002-headless-suppress-optional-providers.patch
     ../patches/nvgpu/0001-dma-clean-up-failed-system-memory-allocations.patch

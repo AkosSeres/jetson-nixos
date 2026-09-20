@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-2.0-only
 { pkgs, l4t-init }:
 pkgs.runCommand "jetson-xavier-udev-rules"
   {

@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-License-Identifier: GPL-2.0-only -->
 # jetson-nixos
 
 Experimental Nix packaging for a modern Linux kernel with CUDA on NVIDIA Jetson
@@ -54,7 +54,7 @@ Run it only after booting the matching experimental system. Compilation does
 not prove driver/runtime compatibility. See [validation](docs/validation.md)
 for the evidence and remaining gates.
 
-`sources` remains a source-only bundle and never runs the Armbian installers.
+`sources` bundles the pinned sources and vendored patches; it runs no installers.
 The firmware and userspace outputs fetch NVIDIA binaries under their own terms.
 
 ## NixOS integration
@@ -86,7 +86,7 @@ kernel after consumer configuration changes.
 
 - `flake.nix`, `flake.lock`: exact Git inputs and recursive source hashes.
 - `sources/linux.nix`: Linux release archive URL and SHA-256.
-- `sources/patches.nix`: ordered, upstream-relative patch inventories.
+- `sources/patches.nix`: ordered, repository-relative patch inventories.
 - `pkgs/sources.nix`: source-only fetch/bundle outputs.
 - `pkgs/kernel*.nix`, `pkgs/nvidia-oot.nix`: kernel/config/module packaging.
 - `overlays/`, `pkgs/userspace.nix`, `pkgs/firmware.nix`: isolated package scopes.
@@ -117,7 +117,9 @@ does not make copied store sources confidential.
 
 ## License
 
-Original Nix code and documentation are MIT licensed; see [LICENSE](LICENSE).
+Copyright (c) 2026 Ákos Seres. Original Nix code and documentation are
+GPL-2.0-only licensed; see [LICENSE](LICENSE). The CUDA smoke-test program
+retains its [MIT license](tests/LICENSE).
 Upstream sources and patches retain their own terms. In particular, this license
 does not relicense Linux, NVIDIA drivers, CUDA, or firmware. See the
 [licensing notes](docs/licensing.md) before importing or distributing artifacts.

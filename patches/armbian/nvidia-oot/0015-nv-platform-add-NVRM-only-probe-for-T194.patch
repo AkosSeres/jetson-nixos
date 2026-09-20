@@ -1,0 +1,254 @@
+nvdisplay: nv-platform: add NVRM-only probe path for T194
+
+The existing nv_platform_device_display_probe() requires display hardware
+resources (nvdisplay MMIO, hdacodec, mipical, IRQs) from the device tree.
+On Xavier (T194), nvidia.ko operates as NVRM resource manager only -
+display is handled by tegra-drm.ko - so these resources don't exist in
+the DT node.
+
+Add a separate nv_platform_device_nvrm_probe() function that performs
+minimal initialization: allocates RM state, creates /dev/nvidia* device
+nodes, and reads the chip ID from DT. No display hardware resources are
+needed.
+
+The dispatch function nv_platform_device_probe() routes to the NVRM-only
+probe when the "nvdisplay" MMIO resource is absent.
+
+A corresponding nv_platform_device_nvrm_remove() handles cleanup for
+the NVRM-only path, and the nv_state_t flag NV_FLAG_SOC_IGPU is used to
+distinguish which removal path to take.
+
+Updated for r36.5 / kernel 6.18: nv_platform_device_remove() now returns
+void (matches kernel 6.11+ platform_driver->remove signature), so
+nv_platform_device_nvrm_remove() also returns void.
+
+Upstream-Status: Inappropriate [platform-specific]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+
+--- a/nvdisplay/kernel-open/nvidia/nv-platform.c
++++ b/nvdisplay/kernel-open/nvidia/nv-platform.c
+@@ -663,6 +663,187 @@
+     return 0;
+ }
+ 
++/*
++ * NVRM-only probe for T194 (Xavier) - no display hardware resources needed.
++ * nvidia.ko serves as resource manager only; display is handled by tegra-drm.ko.
++ */
++static int nv_platform_device_nvrm_probe(struct platform_device *plat_dev)
++{
++    nv_state_t *nv = NULL;
++    nv_linux_state_t *nvl = NULL;
++    nvidia_stack_t *sp = NULL;
++    int rc = 0;
++
++    nv_printf(NV_DBG_SETUP, "NVRM: probing NVRM-only platform device\n");
++
++    rc = nv_kmem_cache_alloc_stack(&sp);
++    if (rc < 0)
++    {
++        nv_printf(NV_DBG_ERRORS, "NVRM: %s: failed to allocate stack!\n",
++                  __FUNCTION__);
++        return rc;
++    }
++
++    NV_KMALLOC(nvl, sizeof(*nvl));
++    if (nvl == NULL)
++    {
++        nv_printf(NV_DBG_ERRORS, "NVRM: failed to allocate nvl memory\n");
++        rc = -ENOMEM;
++        goto err_free_stack;
++    }
++    os_mem_set(nvl, 0, sizeof(*nvl));
++
++    nv = NV_STATE_PTR(nvl);
++
++    platform_set_drvdata(plat_dev, (void *)nvl);
++
++    nvl->dev = &plat_dev->dev;
++
++    nvl->dma_dev.dev = nvl->dev;
++    nvl->dma_dev.addressable_range.start = 0;
++    nvl->dma_dev.addressable_range.limit = NV_U64_MAX;
++    nv->dma_dev = &nvl->dma_dev;
++
++    nvl->tce_bypass_enabled = NV_TRUE;
++
++    NV_KMALLOC(nv->regs, sizeof(*(nv->regs)));
++    if (nv->regs == NULL)
++    {
++        nv_printf(NV_DBG_ERRORS, "NVRM: failed to allocate nv->regs memory\n");
++        rc = -ENOMEM;
++        goto err_free_nvl;
++    }
++    os_mem_set(nv->regs, 0, sizeof(*(nv->regs)));
++
++    nv->flags = NV_FLAG_SOC_DISPLAY | NV_FLAG_SOC_IGPU;
++    nv->os_state = (void *)nvl;
++
++    nv->pci_info.domain    = 2;
++    nv->pci_info.bus       = 0;
++    nv->pci_info.slot      = 0;
++
++    num_probed_nv_devices++;
++
++    if (!nv_lock_init_locks(sp, nv))
++    {
++        rc = -EPERM;
++        goto err_free_nv_regs;
++    }
++
++    nvl->safe_to_mmap = NV_TRUE;
++    INIT_LIST_HEAD(&nvl->open_files);
++    NV_SPIN_LOCK_INIT(&nvl->soc_isr_lock);
++
++    if (!rm_init_private_state(sp, nv))
++    {
++        nv_printf(NV_DBG_ERRORS, "NVRM: rm_init_private_state() failed!\n");
++        rc = -EPERM;
++        goto err_destroy_lock;
++    }
++
++    num_nv_devices++;
++
++    LOCK_NV_LINUX_DEVICES();
++    nv_linux_add_device_locked(nvl);
++    UNLOCK_NV_LINUX_DEVICES();
++
++    if (nvidia_frontend_add_device((void *)&nv_fops, nvl) != 0)
++    {
++        nv_printf(NV_DBG_ERRORS, "NVRM: failed to add device\n");
++        rc = -ENODEV;
++        goto err_remove_device;
++    }
++
++    rm_set_rm_firmware_requested(sp, nv);
++
++    rc = of_property_read_u32(nvl->dev->of_node, "nvidia,disp-sw-soc-chip-id",
++                              &nv->disp_sw_soc_chip_id);
++    if (rc != 0)
++    {
++        nv_printf(NV_DBG_ERRORS, "NVRM: Unable to read disp_sw_soc_chip_id\n");
++        goto err_remove_device;
++    }
++
++    nv_kmem_cache_free_stack(sp);
++
++    dma_set_mask(nv->dma_dev->dev, DMA_BIT_MASK(39));
++
++    rc = os_alloc_mutex(&nvl->soc_bh_mutex);
++
++    nv_printf(NV_DBG_SETUP, "NVRM: NVRM-only probe succeeded (chip-id=0x%x)\n",
++              nv->disp_sw_soc_chip_id);
++
++    return rc;
++
++err_remove_device:
++    LOCK_NV_LINUX_DEVICES();
++    nv_linux_remove_device_locked(nvl);
++    UNLOCK_NV_LINUX_DEVICES();
++    rm_free_private_state(sp, nv);
++err_destroy_lock:
++    nv_lock_destroy_locks(sp, nv);
++err_free_nv_regs:
++    NV_KFREE(nv->regs, sizeof(*(nv->regs)));
++err_free_nvl:
++    NV_KFREE(nvl, sizeof(*nvl));
++    platform_set_drvdata(plat_dev, NULL);
++err_free_stack:
++    nv_kmem_cache_free_stack(sp);
++    return rc;
++}
++
++static void nv_platform_device_nvrm_remove(struct platform_device *plat_dev)
++{
++    nv_linux_state_t *nvl = NULL;
++    nv_state_t *nv;
++    nvidia_stack_t *sp = NULL;
++    int rc;
++
++    nv_printf(NV_DBG_SETUP, "NVRM: removing NVRM-only platform device\n");
++
++    rc = nv_kmem_cache_alloc_stack(&sp);
++    if (rc < 0)
++        return;
++
++    LOCK_NV_LINUX_DEVICES();
++    nvl = platform_get_drvdata(plat_dev);
++    if (!nvl || (nvl->dev != &plat_dev->dev))
++    {
++        UNLOCK_NV_LINUX_DEVICES();
++        nv_kmem_cache_free_stack(sp);
++        return;
++    }
++
++    nv_linux_remove_device_locked(nvl);
++    down(&nvl->ldata_lock);
++    UNLOCK_NV_LINUX_DEVICES();
++
++    nvidia_frontend_remove_device((void *)&nv_fops, nvl);
++
++    nv = NV_STATE_PTR(nvl);
++
++    if ((nv->flags & NV_FLAG_PERSISTENT_SW_STATE) || (nv->flags & NV_FLAG_OPEN))
++    {
++        if (nv->flags & NV_FLAG_PERSISTENT_SW_STATE)
++        {
++            rm_disable_gpu_state_persistence(sp, nv);
++        }
++        nv_shutdown_adapter(sp, nv, nvl);
++        nv_dev_free_stacks(nvl);
++    }
++
++    nv_lock_destroy_locks(sp, nv);
++    num_probed_nv_devices--;
++    rm_free_private_state(sp, nv);
++    num_nv_devices--;
++
++    os_free_mutex(nvl->soc_bh_mutex);
++    NV_KFREE(nv->regs, sizeof(*(nv->regs)));
++    NV_KFREE(nvl, sizeof(*nvl));
++
++    nv_kmem_cache_free_stack(sp);
++}
++
+ static int nv_platform_device_display_probe(struct platform_device *plat_dev)
+ {
+     nv_state_t *nv = NULL;
+@@ -1177,11 +1358,11 @@
+ {
+     int rc = 0;
+ 
+-    if (plat_dev->dev.of_node)
++    if (plat_dev->dev.of_node &&
++        !platform_get_resource_byname(plat_dev, IORESOURCE_MEM, "nvdisplay"))
+     {
+-        {
+-            rc = nv_platform_device_display_probe(plat_dev);
+-        }
++        /* NVRM-only mode: no display hardware resources in DT */
++        rc = nv_platform_device_nvrm_probe(plat_dev);
+     }
+     else
+     {
+@@ -1193,11 +1374,16 @@
+ 
+ static void nv_platform_device_remove(struct platform_device *plat_dev)
+ {
+-    if (plat_dev->dev.of_node)
++    nv_linux_state_t *nvl = platform_get_drvdata(plat_dev);
++    nv_state_t *nv = nvl ? NV_STATE_PTR(nvl) : NULL;
++
++    if (nv && (nv->flags & NV_FLAG_SOC_IGPU))
+     {
+-        {
+-            nv_platform_device_display_remove(plat_dev);
+-        }
++        nv_platform_device_nvrm_remove(plat_dev);
++    }
++    else if (plat_dev->dev.of_node)
++    {
++        nv_platform_device_display_remove(plat_dev);
+     }
+     else
+     {

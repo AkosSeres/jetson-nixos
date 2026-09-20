@@ -1,9 +1,9 @@
-# SPDX-License-Identifier: MIT
-# Ordered paths inside the locked Armbian input. This is provenance metadata;
-# the patches retain their upstream terms and are applied by the kernel/OOT packages.
+# SPDX-License-Identifier: GPL-2.0-only
+# Ordered repository-relative paths. Vendored patch provenance and licenses
+# are recorded in patches/armbian/README.md.
 let
-  linuxRoot = "patch/kernel/archive/uefi-arm64-6.18";
-  ootRoot = "extensions/jetson-l4t/files/dkms";
+  linuxRoot = "patches/armbian/linux";
+  ootRoot = "patches/armbian/nvidia-oot";
 in
 {
   linux = map (name: "${linuxRoot}/${name}") [

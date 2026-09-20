@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-License-Identifier: GPL-2.0-only -->
 # Source provenance
 
 ## Git inputs
@@ -9,7 +9,6 @@ hashes. The NVIDIA Git input additionally requests recursive submodules.
 | Input | Revision | Intended role |
 | --- | --- | --- |
 | [nixpkgs](https://github.com/NixOS/nixpkgs/commit/f4f698677b11021a8f84f452e23ae9ef2427bec3) | `f4f698677b11021a8f84f452e23ae9ef2427bec3` | Audited NixOS 26.05 package set |
-| [armbian](https://github.com/CybrixSystems/armbian-build/commit/b673d05018528b6735408bd777f4e3bf33d5becf) | `b673d05018528b6735408bd777f4e3bf33d5becf` | CybrixSystems' Xavier patch and board reference |
 | [nvidia-oot](https://github.com/OE4T/nvidia-kernel-oot/commit/3428d01926de97ca8b0f25fe6edd9c76e19472a1) | `3428d01926de97ca8b0f25fe6edd9c76e19472a1` | OE4T R36.5 / Linux 6.18 OOT superproject |
 | [jetpack-r36](https://github.com/anduril/jetpack-nixos/commit/98a83b7d737ed636439c7fdc628a875eaf4cce15) | `98a83b7d737ed636439c7fdc628a875eaf4cce15` | JetPack 6.2.1 / L4T 36.4.4 package recipes |
 | [jetpack-r35](https://github.com/anduril/jetpack-nixos/commit/cade3c198b8169ee7fd46dbdc283c714d9923951) | `cade3c198b8169ee7fd46dbdc283c714d9923951` | JetPack 5.1.7 / L4T 35.6.5 firmware recipes |
@@ -70,13 +69,14 @@ repository itself.
 ## Reference patch inventories
 
 [`sources/patches.nix`](../sources/patches.nix) is the ordered, machine-readable
-inventory. Every path is relative to the locked Armbian source; the kernel/OOT
-derivations apply these directly from that input. The inventory records the audited reference
-series, not a guarantee that every patch remains necessary after version changes.
+inventory. Paths are relative to this repository; the kernel/OOT derivations
+apply the vendored files under `patches/armbian/`. Their original revision,
+paths and licenses are recorded in the [provenance note](../patches/armbian/README.md).
+The selection and patch bytes are unchanged from the former Armbian input.
 
 ### Linux: nine patches, 0004–0012
 
-Source directory:
+Original source directory (local copies: `patches/armbian/linux/`):
 [`patch/kernel/archive/uefi-arm64-6.18`](https://github.com/CybrixSystems/armbian-build/tree/b673d05018528b6735408bd777f4e3bf33d5becf/patch/kernel/archive/uefi-arm64-6.18).
 These target the Linux tree.
 
@@ -96,7 +96,7 @@ The unrelated HiKey960 and Phytium patches in the same directory are excluded.
 
 ### OOT: fifteen patches, 0006–0020
 
-Source directory:
+Original source directory (local copies: `patches/armbian/nvidia-oot/`):
 [`extensions/jetson-l4t/files/dkms`](https://github.com/CybrixSystems/armbian-build/tree/b673d05018528b6735408bd777f4e3bf33d5becf/extensions/jetson-l4t/files/dkms).
 Paths target the superproject root, including `nvidia-oot/` and `nvdisplay/`,
 not Linux's old vendor-tree `nvidia/` directory.

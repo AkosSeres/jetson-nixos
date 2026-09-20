@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-2.0-only
 {
   inputs,
   linuxSource,
@@ -9,7 +9,7 @@ let
   userspaceOverlay = import ./userspace.nix { inherit inputs; } final prev;
   kernel = import ../pkgs/kernel.nix {
     pkgs = final;
-    inherit inputs linuxSource patchSeries;
+    inherit linuxSource patchSeries;
   };
   mkNvidiaOot =
     kernel:

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-2.0-only
 {
   # Keep the exact point release validated on both AGX Xavier nodes. Point
   # updates are separate experiments and must pass patch, build, boot, CUDA,

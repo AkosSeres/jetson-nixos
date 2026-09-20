@@ -1,0 +1,82 @@
+From: Sam Edwards <CFSworks@gmail.com>
+Subject: [PATCH] net: stmmac: Prevent indefinite RX stall on buffer exhaustion
+
+Backport of the not-yet-merged upstream patch (v4, state "Changes
+Requested" in patchwork as of 2026-08, no newer revision posted):
+https://lore.kernel.org/netdev/20260401041929.12392-3-CFSworks@gmail.com/
+"[PATCH net v4 2/2] net: stmmac: Prevent indefinite RX stall on buffer
+exhaustion", companion of commit 0bb05e6adfa9 ("net: stmmac: Prevent
+NULL deref when RX memory exhausted") which IS merged and is already in
+linux-6.18.y (it is also the fix for CVE-2026-46110).
+
+Note that only 1/2 of that series was taken upstream: the NULL deref is
+fixed in mainline, linux-next and net-next, but stmmac_rx() there still
+ends with a bare "return count;" and the indefinite stall persists.
+
+Why this is needed on Jetson AGX Xavier (dwmac-dwc-qos-eth, DWMAC 4.10,
+single RX queue, single shared IRQ):
+
+Under load (many parallel TCP streams + NVMe writes, i.e. page cache /
+page_pool memory pressure) RX dies permanently and silently: the IRQ
+count and rx_packets freeze, dmesg stays empty, all MMC error counters
+read 0, and only `ip link set end0 down/up` recovers. Registers read in
+the hung state show the exact mechanism:
+
+  DMA_CH0_STATUS      (0x1160) = 0x00000484  -> bit 7 RBU set
+  DMA_CH0_INTR_ENABLE (0x1134) = 0x0000D041  -> bit 7 RBUE masked
+  DMA_CH0_RX_CONTROL  (0x1108) = 0x00080C01  -> SR=1
+
+stmmac_rx_refill() fails an atomic page_pool allocation and returns
+early without rearming descriptors or bumping the RX tail pointer. The
+DMA then hits the end of the OWN=0 ring, raises RBU and suspends the
+receive process. Because RBUE is not in DMA_CHAN_INTR_DEFAULT_MASK, no
+interrupt is generated (per the DesignWare databook, AIS asserts only
+for individually enabled abnormal interrupts) - and even if it were,
+dwmac4_dma_interrupt() only increments rx_buf_unav_irq without
+scheduling NAPI. RI can never fire again since no buffer is ever
+filled. NAPI completes, unmasks interrupts, and the driver waits
+forever for an interrupt that will never arrive.
+
+Unmasking RBUE is not the right fix: it does not schedule NAPI on
+dwmac4, and on xgmac2 it was explicitly removed upstream as an
+interrupt storm with "no OOM recovery" (commit "net: stmmac: xgmac2:
+disable RBUE in default RX interrupt mask"). The correct recovery is in
+software: if stmmac_rx_refill() left too many dirty (unarmed)
+descriptors behind, report full budget consumption so NAPI keeps polling
+and keeps retrying the refill until it succeeds, at which point the tail
+pointer write resumes the suspended DMA receive process.
+
+v4 uses STMMAC_RX_FILL_BATCH as the threshold rather than "any dirty
+descriptor at all", matching the logic already used by the zero-copy
+refill path, and avoids burning NAPI cycles on a single stale entry.
+
+Fixes: 47dd7a540b8a ("net: add support for STMicroelectronics Ethernet controllers.")
+Upstream-Status: Pending
+Signed-off-by: Sam Edwards <CFSworks@gmail.com>
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+---
+ drivers/net/ethernet/stmicro/stmmac/stmmac_main.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+--- a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
++++ b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+@@ -5402,6 +5402,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
+ 	unsigned int desc_size;
+ 	struct sk_buff *skb = NULL;
+ 	struct stmmac_xdp_buff ctx;
++	int budget = limit;
+ 	int xdp_status = 0;
+ 	int bufsz;
+
+@@ -5669,6 +5670,10 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
+ 	priv->xstats.rx_dropped += rx_dropped;
+ 	priv->xstats.rx_errors += rx_errors;
+
++	/* If stmmac_rx_refill() failed, keep trying until it doesn't. */
++	if (unlikely(stmmac_rx_dirty(priv, queue) >= STMMAC_RX_FILL_BATCH))
++		return budget;
++
+ 	return count;
+ }
+

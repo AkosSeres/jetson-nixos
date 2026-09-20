@@ -1,0 +1,18 @@
+nvdisplay: g_hal_archimpl: enable T194 HIDREV
+
+Set the T194 entry in the chipID array to {0x0, 0x0, 0x194} so that
+halmgrGetHalForGpu can match the T194 HIDREV and bind the HAL.
+
+Upstream-Status: Inappropriate [platform-specific]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+--- a/nvdisplay/src/nvidia/generated/g_hal_archimpl.h
++++ b/nvdisplay/src/nvidia/generated/g_hal_archimpl.h
+@@ -83,7 +83,7 @@
+     {                               0x0,                            0x0,   0x0 } , // T132   (disabled)
+     {                               0x0,                            0x0,   0x0 } , // T210   (disabled)
+     {                               0x0,                            0x0,   0x0 } , // T186   (disabled)
+-    {                               0x0,                            0x0,   0x0 } , // T194   (disabled)
++    {                               0x0,                            0x0, 0x194 } , // T194
+     {                               0x0,                            0x0,   0x0 } , // T002_TURING_NOT_EXIST (disabled)
+     {                               0x0,                            0x0,   0x0 } , // T234   (disabled)
+     {                               0x0,                            0x0,   0x0 } , // T003_ADA_NOT_EXIST (disabled)

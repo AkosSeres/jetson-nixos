@@ -1,15 +1,10 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-2.0-only
 {
   description = "Experimental modern-kernel CUDA support for Jetson Xavier on NixOS";
 
   inputs = {
     # Audited NixOS 26.05 package set.
     nixpkgs.url = "github:NixOS/nixpkgs/f4f698677b11021a8f84f452e23ae9ef2427bec3";
-
-    armbian = {
-      url = "github:CybrixSystems/armbian-build/b673d05018528b6735408bd777f4e3bf33d5becf";
-      flake = false;
-    };
 
     nvidia-oot = {
       # Fetch the committed gitlinks, never the submodules' branch tips.

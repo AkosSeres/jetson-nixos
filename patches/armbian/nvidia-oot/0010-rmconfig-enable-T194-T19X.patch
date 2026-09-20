@@ -1,0 +1,26 @@
+nvdisplay: rmconfig: enable RMCFG_CHIP_T194 and T19X
+
+Enable the T194 and T19X chip family defines.
+
+Upstream-Status: Inappropriate [platform-specific]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+--- a/nvdisplay/src/nvidia/generated/rmconfig.h
++++ b/nvdisplay/src/nvidia/generated/rmconfig.h
+@@ -34,7 +34,7 @@
+ #define RMCFG_CHIP_T13X      0
+ #define RMCFG_CHIP_T21X      0
+ #define RMCFG_CHIP_T18X      0
+-#define RMCFG_CHIP_T19X      0
++#define RMCFG_CHIP_T19X      1
+ #define RMCFG_CHIP_T23XG     0
+ #define RMCFG_CHIP_T23XD     1
+ #define RMCFG_CHIP_SIMS      0
+@@ -77,7 +77,7 @@
+ 
+ #define RMCFG_CHIP_GA102F    0
+ 
+-#define RMCFG_CHIP_T194      0
++#define RMCFG_CHIP_T194      1
+ 
+ #define RMCFG_CHIP_T234      0
+ 

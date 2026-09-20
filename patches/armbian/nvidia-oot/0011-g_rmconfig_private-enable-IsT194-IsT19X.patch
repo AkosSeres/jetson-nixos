@@ -1,0 +1,29 @@
+nvdisplay: g_rmconfig_private: enable IsT194/IsT19X macros
+
+Change IsT194, IsT194orBetter, IsT19X, and IsT19XorBetter macros from
+always-false to always-true.
+
+Upstream-Status: Inappropriate [platform-specific]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+
+--- a/nvdisplay/src/nvidia/generated/g_rmconfig_private.h
++++ b/nvdisplay/src/nvidia/generated/g_rmconfig_private.h
+@@ -308,14 +308,14 @@
+ 
+ // T19X
+-#define IsT194(pGpu)                   ((0) && (pGpu))
+-#define IsT194orBetter(pGpu)           ((0) && (pGpu))
++#define IsT194(pGpu)                   ((1) && (pGpu))
++#define IsT194orBetter(pGpu)           ((1) && (pGpu))
+ 
+ #define IsT002_TURING_NOT_EXIST(pGpu)  ((0) && (pGpu))
+ #define IsT002_TURING_NOT_EXISTorBetter(pGpu) ((0) && (pGpu))
+ 
+ // Any T19X chip?
+-#define IsT19X(pGpu)                   (0 && (pGpu))
+-#define IsT19XorBetter(pGpu)           (0 && (pGpu))
++#define IsT19X(pGpu)                   (1 || (pGpu))
++#define IsT19XorBetter(pGpu)           (1 || (pGpu))
+ 
+ 
+ // T23XG

@@ -1,0 +1,43 @@
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Subject: [PATCH] arm64: dts: tegra194: relax EQOS AXI outstanding request limits
+
+The EQOS node inherits snps,write-requests = <1> from the original
+Tegra186 submission.  dwc-qos-eth parses this as "N outstanding AXI
+write requests" and programs N-1 into DMA_SYSBUS_MODE.WR_OSR_LMT, so
+the RX DMA engine ends up limited to a SINGLE outstanding AXI write
+(and 3 reads for TX).  Every RX buffer write must then complete before
+the next is issued, making throughput strictly memory-latency-bound.
+At the BPMP's conservative boot EMC frequency (no Tegra194 interconnect
+provider exists in mainline, so the EQOS interconnect paths never
+request bandwidth) the added latency causes RX FIFO overflow and, under
+sustained load, DMA stalls and TX watchdog resets.
+
+NVIDIA's own production driver disagrees with the DT: the L4T r35
+nvethernet resource manager (nvethernetrm/osi/core/eqos_core.c,
+eqos_configure_dma()) programs RD_OSR_LMT = WR_OSR_LMT = 31 (the full
+5-bit field) plus BLEN8|BLEN16 on the very same T194 EQOS instance.
+
+Mainline dwmac4 masks the OSR fields to 4 bits (GENMASK(27,24) /
+GENMASK(19,16) in dwmac4_dma.h), so the largest value expressible via
+DT is 16 (register value 15).  Use that for both directions.  The
+burst-map <0x7> (BLEN4|8|16) already covers NVIDIA's BLEN8|BLEN16 and
+is left unchanged.
+
+Upstream-Status: Pending (candidate for upstream; values derived from
+NVIDIA's L4T OSI programming of the same IP instance, capped to the
+4-bit field mainline dwmac4 writes)
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+---
+--- a/arch/arm64/boot/dts/nvidia/tegra194.dtsi
++++ b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+@@ -159,8 +159,8 @@
+ 			iommus = <&smmu TEGRA194_SID_EQOS>;
+ 			status = "disabled";
+
+-			snps,write-requests = <1>;
+-			snps,read-requests = <3>;
++			snps,write-requests = <16>;
++			snps,read-requests = <16>;
+ 			snps,burst-map = <0x7>;
+ 			snps,txpbl = <16>;
+ 			snps,rxpbl = <8>;

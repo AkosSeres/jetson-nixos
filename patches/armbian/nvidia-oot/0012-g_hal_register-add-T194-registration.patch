@@ -1,0 +1,81 @@
+nvdisplay: g_hal_register/g_hal_private: add T194 HAL registration
+
+Add registerHalModule_T194() and REGISTER_T19X_HALS() for T194 HAL
+binding. T194 uses an empty HAL_IFACE_SETUP same as T234D.
+
+Upstream-Status: Inappropriate [platform-specific]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+--- a/nvdisplay/src/nvidia/generated/g_hal_register.h
++++ b/nvdisplay/src/nvidia/generated/g_hal_register.h
+@@ -15,6 +15,18 @@
+ // per-family HAL registration entry points
+ //
+ 
++NV_STATUS registerHalModule_T194(void);
++
++static NV_STATUS NV_INLINE REGISTER_T19X_HALS(void)
++{
++    NV_STATUS rmStatus;
++
++    rmStatus = registerHalModule_T194();
++    if (rmStatus != NV_OK)
++        return rmStatus;
++
++    return NV_OK;
++}
+ 
+ NV_STATUS registerHalModule_T234D(void);    
+ 
+@@ -41,6 +53,12 @@
+     if (rmStatus != NV_OK)
+     {
+         return rmStatus;
++    }
++
++    rmStatus = REGISTER_T19X_HALS();
++    if (rmStatus != NV_OK)
++    {
++        return rmStatus;
+     }
+ 
+     return NV_OK;
+--- a/nvdisplay/src/nvidia/generated/g_hal_private.h
++++ b/nvdisplay/src/nvidia/generated/g_hal_private.h
+@@ -25,6 +25,7 @@
+ // setup all enabled chip families
+ #if defined(RMCFG_HAL_SETUP_ALL)
+ #  define RMCFG_HAL_SETUP_T23XD          1
++#  define RMCFG_HAL_SETUP_T19X           1
+ #endif   // RMCFG_HAL_SETUP_ALL
+ 
+ //
+@@ -35,6 +36,10 @@
+ #  define RMCFG_HAL_SETUP_T234D          1
+ #endif // T23XD
+ 
++#if defined(RMCFG_HAL_SETUP_T19X)
++#  define RMCFG_HAL_SETUP_T194           1
++#endif // T19X
++
+ #endif  // RMCFG_ENGINE_SETUP
+ 
+ // pull in private headers for each engine
+@@ -61,6 +66,18 @@
+ 
+ #endif  // T23XD or T234D
+ 
++#if defined(RMCFG_HAL_SETUP_T194)
++
++static const HAL_IFACE_SETUP halIface_T194 = {
++
++};
++
++NV_STATUS registerHalModule_T194(void)
++{
++    return registerHalModule(HAL_IMPL_T194, &halIface_T194);
++}
++
++#endif  // T19X or T194
+ 
+ 
+ #endif  // _G_RMCFG_HAL_PRIVATE_H_

@@ -1,0 +1,41 @@
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Subject: [PATCH] mttcan: make clk_set_parent failure non-fatal on T194
+
+On Tegra194 with the upstream BPMP clock driver, clk_set_parent on
+BPMP-managed clocks fails because BPMP firmware controls the clock tree
+topology - runtime parent changes via CMD_CLK_SET_PARENT are policy-rejected
+for CAN modules. However, PLLAON is already configured as the CAN clock
+parent at boot via BPMP firmware defaults, so the kernel-side parent set
+is unnecessary in the first place.
+
+In L4T 35.x this code worked because NVIDIA's L4T BPMP driver allowed
+the parent change. On upstream 6.18 BPMP it returns -EINVAL.
+
+Make the failure a warning instead of returning ENODEV. The subsequent
+clk_set_rate / clk_round_rate calls work fine because the parent is
+already correct.
+
+Without this patch:
+  mttcan c310000.mttcan: unable to set CAN_CLK parent
+  mttcan c310000.mttcan: probe failed
+
+Upstream-Status: Inappropriate [vendor OOT module, T194-specific BPMP behavior]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+
+--- a/nvidia-oot/drivers/net/can/mttcan/native/m_ttcan_linux.c
++++ b/nvidia-oot/drivers/net/can/mttcan/native/m_ttcan_linux.c
+@@ -1675,10 +1675,10 @@
+ 	}
+ 
+ 	ret = clk_set_parent(can_clk, pclk);
+-	if (ret) {
+-		dev_warn(priv->device, "unable to set CAN_CLK parent\n");
+-		return -ENODEV;
+-	}
++	if (ret)
++		dev_warn(priv->device,
++			 "unable to set CAN_CLK parent (ret=%d) - continuing, "
++			 "BPMP-managed parent already set at boot\n", ret);
+ 
+ 	new_rate = clk_round_rate(can_clk, rate);
+ 	if (!new_rate)

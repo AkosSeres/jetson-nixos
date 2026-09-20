@@ -1,0 +1,104 @@
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Subject: [PATCH] drm/tegra: fbdev: adapt to fb_info preallocated by fb-helper
+
+Linux v6.18.44 removed drm_fb_helper_alloc_fbi() entirely. The fbdev
+emulation core now allocates the fb_info before calling the driver's
+->fbdev_probe() and hands it over as fb_helper->info, so drivers just
+consume it; see drm_fbdev_dma_driver_fbdev_probe() in v6.18.44, which
+opens with "struct fb_info *info = fb_helper->info;".
+
+nvidia-oot's drivers/gpu/drm/tegra/fbdev.c still picks between the two
+historical spellings of the allocator:
+
+    #if defined(NV_DRM_FB_HELPER_ALLOC_INFO_PRESENT) /* Linux v6.2 */
+            info = drm_fb_helper_alloc_info(helper);
+    #else
+            info = drm_fb_helper_alloc_fbi(helper);
+    #endif
+
+On v6.18.44 *neither* exists: the v6.2 conftest correctly reports
+drm_fb_helper_alloc_info as absent, so the #else branch is taken and the
+build dies on the other one, too:
+
+  drivers/gpu/drm/tegra/fbdev.c:129:16: error: implicit declaration of
+  function 'drm_fb_helper_alloc_fbi'; did you mean
+  'drm_fb_helper_lastclose'? [-Wimplicit-function-declaration]
+  drivers/gpu/drm/tegra/fbdev.c:129:14: error: assignment to
+  'struct fb_info *' from 'int' makes pointer from integer without a cast
+
+This is a hard DKMS failure: none of the ~160 out-of-tree modules get
+installed, so the GPU does not come up at all after a kernel bump from
+6.18.43 to 6.18.44.
+
+Add a conftest for the older drm_fb_helper_alloc_fbi() as well and make
+the selection three-way, so the same source keeps building against
+kernels that predate the v6.2 rename, kernels between v6.2 and v6.18,
+and kernels where the allocation moved into the fb-helper core. The
+IS_ERR() check is kept for the two allocating branches only; a
+preallocated fb_helper->info is never an ERR_PTR (the core would have
+failed the probe before calling us), so testing it would be wrong.
+
+Upstream-Status: Inappropriate [out-of-tree driver, NVIDIA nvidia-oot]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+---
+--- a/nvidia-oot/scripts/conftest/Makefile
++++ b/nvidia-oot/scripts/conftest/Makefile
+@@ -132,6 +132,7 @@ NV_CONFTEST_FUNCTION_COMPILE_TESTS += drm_driver_struct_has_date
+ NV_CONFTEST_FUNCTION_COMPILE_TESTS += drm_driver_struct_has_irq_enabled_arg
+ NV_CONFTEST_FUNCTION_COMPILE_TESTS += drm_edid_connector_add_modes
+ NV_CONFTEST_FUNCTION_COMPILE_TESTS += drm_fb_helper_alloc_info
++NV_CONFTEST_FUNCTION_COMPILE_TESTS += drm_fb_helper_alloc_fbi
+ NV_CONFTEST_FUNCTION_COMPILE_TESTS += drm_fb_helper_prepare_has_preferred_bpp_arg
+ NV_CONFTEST_FUNCTION_COMPILE_TESTS += drm_fb_helper_unregister_info
+ NV_CONFTEST_FUNCTION_COMPILE_TESTS += drm_fb_helper_struct_has_info_arg
+--- a/nvidia-oot/scripts/conftest/conftest.sh
++++ b/nvidia-oot/scripts/conftest/conftest.sh
+@@ -7322,6 +7322,25 @@ compile_test() {
+             compile_check_conftest "$CODE" "NV_DRM_FB_HELPER_ALLOC_INFO_PRESENT" "" "functions"
+         ;;
+
++        drm_fb_helper_alloc_fbi)
++            #
++            # Determine if the function 'drm_fb_helper_alloc_fbi' is present.
++            #
++            # This is the pre-v6.2 spelling of drm_fb_helper_alloc_info(). Both
++            # were removed in Linux v6.18.44, where the fbdev core allocates
++            # fb_info itself and passes it in as fb_helper->info.
++            #
++            CODE="
++            #undef CONFIG_ACPI
++            #include <drm/drm_fb_helper.h>
++            void conftest_drm_fb_helper_alloc_fbi(void)
++            {
++                    drm_fb_helper_alloc_fbi();
++            }"
++
++            compile_check_conftest "$CODE" "NV_DRM_FB_HELPER_ALLOC_FBI_PRESENT" "" "functions"
++        ;;
++
+         drm_fb_helper_prepare_has_preferred_bpp_arg)
+             #
+             # Determine if the function 'drm_fb_helper_prepare' has the
+--- a/nvidia-oot/drivers/gpu/drm/tegra/fbdev.c
++++ b/nvidia-oot/drivers/gpu/drm/tegra/fbdev.c
+@@ -125,14 +125,19 @@
+ 
+ #if defined(NV_DRM_FB_HELPER_ALLOC_INFO_PRESENT) /* Linux v6.2 */
+ 	info = drm_fb_helper_alloc_info(helper);
+-#else
++#elif defined(NV_DRM_FB_HELPER_ALLOC_FBI_PRESENT)
+ 	info = drm_fb_helper_alloc_fbi(helper);
++#else /* Linux v6.18.44: the fbdev core preallocates fb_info for us */
++	info = helper->info;
+ #endif
++#if defined(NV_DRM_FB_HELPER_ALLOC_INFO_PRESENT) || \
++    defined(NV_DRM_FB_HELPER_ALLOC_FBI_PRESENT)
+ 	if (IS_ERR(info)) {
+ 		dev_err(drm->dev, "failed to allocate framebuffer info\n");
+ 		drm_gem_object_put(&bo->gem);
+ 		return PTR_ERR(info);
+ 	}
++#endif
+ 
+ 	fb = tegra_fb_alloc(drm,
+ #if defined(NV_DRM_HELPER_MODE_FILL_FB_STRUCT_HAS_INFO_ARG) /* Linux v6.17 */

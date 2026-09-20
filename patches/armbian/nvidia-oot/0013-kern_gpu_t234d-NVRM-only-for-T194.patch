@@ -1,0 +1,31 @@
+nvdisplay: kern_gpu_t234d: configure for NVRM-only T194 operation
+
+All HAL functions are resolved via compile-time macros to T234D variants.
+Modify the T234D functions to serve T194 (Xavier) as NVRM resource
+manager only. Strip display subsystems from child lists and set T194
+chip identity.
+
+Upstream-Status: Inappropriate [platform-specific]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+--- a/nvdisplay/src/nvidia/src/kernel/gpu/arch/t23x/kern_gpu_t234d.c
++++ b/nvdisplay/src/nvidia/src/kernel/gpu/arch/t23x/kern_gpu_t234d.c
+@@ -34,8 +34,6 @@
+ #include "g_allclasses.h"
+ #include <nv_arch.h>
+ 
+-#include "swref/published/t23x/t234/dev_fuse.h"
+-
+ /*!
+  * @brief fill in the GPU ID information
+  */
+@@ -45,8 +43,8 @@
+     OBJGPU   *pGpu
+ )
+ {
+-    pGpu->chipInfo.platformId       = GPU_ARCHITECTURE_T23X;
+-    pGpu->chipInfo.implementationId = GPU_IMPLEMENTATION_T234D;
++    pGpu->chipInfo.platformId       = GPU_ARCHITECTURE_T19X;
++    pGpu->chipInfo.implementationId = GPU_IMPLEMENTATION_T194;
+     pGpu->chipInfo.revisionId = 0;
+ }
+ 
