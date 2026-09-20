@@ -1,0 +1,21 @@
+nvdisplay: g_chips2halspec_nvoc: add T194 HalVarIdx mapping
+
+Map T194 HIDREV (0x194) to HalVarIdx=90, reusing the T234D HAL variant.
+
+Upstream-Status: Inappropriate [platform-specific]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+
+--- a/nvdisplay/src/nvidia/generated/g_chips2halspec_nvoc.c
++++ b/nvdisplay/src/nvidia/generated/g_chips2halspec_nvoc.c
+@@ -14,6 +14,11 @@ void __nvoc_init_halspec_ChipHal(ChipHal
+     {
+         pChipHal->__nvoc_HalVarIdx = 90;
+     }
++    // T194 - reuse T234D HAL variant (NVRM-only, no display)
++    else if(arch == 0x0 && impl == 0x0 && hidrev == 0x194)
++    {
++        pChipHal->__nvoc_HalVarIdx = 90;
++    }
+ }
+ 
+ void __nvoc_init_halspec_TegraChipHal(TegraChipHal *pTegraChipHal, TEGRA_CHIP_TYPE tegraType)

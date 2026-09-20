@@ -1,7 +1,6 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-2.0-only
 {
   pkgs,
-  inputs,
   linuxSource,
   patchSeries,
 }:
@@ -20,7 +19,7 @@ pkgs.buildLinux {
   kernelPatches =
     (map (path: {
       name = builtins.baseNameOf path;
-      patch = "${inputs.armbian}/${path}";
+      patch = ../. + "/${path}";
     }) patchSeries.linux)
     ++ [
       {

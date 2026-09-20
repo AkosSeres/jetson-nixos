@@ -1,2 +1,4 @@
 # Patch context lines intentionally contain a leading space before source tabs.
 *.patch whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+# Preserve the upstream license text byte-for-byte, including its final blank line.
+patches/armbian/nvidia-oot/COPYING whitespace=-blank-at-eof

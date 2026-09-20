@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-License-Identifier: GPL-2.0-only -->
 # Integration boundaries
 
 These are the implementation boundaries for the experimental headless port.

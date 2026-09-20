@@ -1,22 +1,5 @@
 {
   "nodes": {
-    "armbian": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1786450706,
-        "narHash": "sha256-8CBuSOPqEyUYgHjxOEa87Bo3kM0gNA+n4Dki2zlK/EQ=",
-        "owner": "CybrixSystems",
-        "repo": "armbian-build",
-        "rev": "b673d05018528b6735408bd777f4e3bf33d5becf",
-        "type": "github"
-      },
-      "original": {
-        "owner": "CybrixSystems",
-        "repo": "armbian-build",
-        "rev": "b673d05018528b6735408bd777f4e3bf33d5becf",
-        "type": "github"
-      }
-    },
     "jetpack-r35": {
       "flake": false,
       "locked": {
@@ -89,7 +72,6 @@
     },
     "root": {
       "inputs": {
-        "armbian": "armbian",
         "jetpack-r35": "jetpack-r35",
         "jetpack-r36": "jetpack-r36",
         "nixpkgs": "nixpkgs",

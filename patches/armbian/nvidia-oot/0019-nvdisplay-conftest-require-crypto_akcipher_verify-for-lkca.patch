@@ -1,0 +1,63 @@
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Subject: [PATCH] nvdisplay: conftest: require crypto_akcipher_verify() for LKCA
+
+The libspdm glue (kernel-open/nvidia/libspdm_*.c) only compiles its real
+Linux Kernel Crypto API backend when USE_LKCA is defined, which requires
+both the NV_CRYPTO_PRESENT conftest result and a set of CONFIG_CRYPTO_*
+options (see internal_crypt_lib.h). Otherwise every primitive is stubbed
+out to return an error, which is a fully supported configuration ("It is
+possible that we don't have access to all the functions..."): SPDM device
+attestation is only used for confidential computing on PCIe dGPUs and is
+never exercised on Tegra, where the GPU is integrated.
+
+Upstream commit 6b34562f0cfe ("crypto: akcipher - Drop sign/verify
+operations", v6.13-rc1) removed crypto_akcipher_verify(), which
+libspdm_ecc.c calls in its USE_LKCA path; signature verification moved to
+the separate crypto_sig API. The existing "crypto" conftest does not probe
+for it -- its own comment admits "This test is not complete and may return
+false positive" -- so on a kernel that enables CONFIG_CRYPTO_ECDSA and
+friends (Armbian 6.18.43 does) USE_LKCA is turned on and the build dies:
+
+  nvidia/libspdm_ecc.c:312:27: error: implicit declaration of function
+  'crypto_akcipher_verify'; did you mean 'crypto_akcipher_reqtfm'?
+
+The reference Yocto build on 6.18.22 (which also lacks the function --
+it has been gone since v6.13) only succeeds because its kernel config
+leaves NV_CONFIG_CRYPTO_PRESENT undefined, i.e. it silently takes the
+stub path already.
+
+Make the conftest reference crypto_akcipher_verify so that
+NV_CRYPTO_PRESENT is only defined on kernels where the LKCA code can
+actually compile; on newer kernels libspdm falls back to the designed
+stub path. Deliberately not a LINUX_VERSION_CODE check: distro/stable
+kernels backport API changes regardless of version number.
+
+Upstream-Status: Pending [applicable to OE4T/nv-kernel-display-driver wip-r36.5-take-2]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+
+diff --git a/nvdisplay/kernel-open/conftest.sh b/nvdisplay/kernel-open/conftest.sh
+index 26a737e..5ba3252 100644
+--- a/nvdisplay/kernel-open/conftest.sh
++++ b/nvdisplay/kernel-open/conftest.sh
+@@ -6550,6 +6550,21 @@ compile_test() {
+                 struct shash_desc sd;
+                 struct crypto_shash cs;
+                 (void)crypto_shash_tfm_digest;
++                /*
++                 * NOTE: this CODE fragment is a double-quoted shell string,
++                 * so no double quotes may appear in this comment.
++                 *
++                 * crypto_akcipher_verify() was removed by kernel commit
++                 * 6b34562f0cfe (crypto: akcipher - Drop sign/verify
++                 * operations) in v6.13; libspdm_ecc.c depends on it, so
++                 * without it the LKCA-backed libspdm code cannot build
++                 * and must fall back to the stub implementations.
++                 * Referencing the undeclared identifier is a hard compile
++                 * error (not just -Wimplicit-function-declaration, which
++                 * conftest suppresses), so this reliably fails the test on
++                 * kernels where the function is gone.
++                 */
++                (void)crypto_akcipher_verify;
+             }"
+ 
+             compile_check_conftest "$CODE" "NV_CRYPTO_PRESENT" "" "symbols"

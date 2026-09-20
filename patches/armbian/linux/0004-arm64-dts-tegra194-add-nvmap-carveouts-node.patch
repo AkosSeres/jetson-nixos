@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Date: Fri, 17 Apr 2026 12:00:00 +0200
+Subject: [PATCH] arm64: dts: tegra194: add nvmap carveouts node
+
+The NVIDIA out-of-tree nvmap driver requires a device tree node with
+compatible = "nvidia,carveouts-t19x" to probe successfully. Without this
+node, nvmap_probe() never fires, /dev/nvmap is not created, and all
+userspace components (libnvrm_mem, nvidia_drv X.Org driver) that depend
+on nvmap fail.
+
+Add a minimal nvmap node to tegra194.dtsi so that the OOT nvmap module
+can probe and register the /dev/nvmap character device.
+
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+---
+ arch/arm64/boot/dts/nvidia/tegra194.dtsi | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/nvidia/tegra194.dtsi b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+--- a/arch/arm64/boot/dts/nvidia/tegra194.dtsi
++++ b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+@@ -3181,4 +3181,9 @@
+ 		interrupt-parent = <&gic>;
+ 		always-on;
+ 	};
++
++	nvmap {
++		compatible = "nvidia,carveouts-t19x";
++		status = "okay";
++	};
+ };

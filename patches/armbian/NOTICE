@@ -1,0 +1,53 @@
+Patch authorship and sign-offs are retained in the individual patch files.
+The following notices are from target files in Linux 6.18.46 and the pinned
+OE4T superproject 3428d01926de97ca8b0f25fe6edd9c76e19472a1.
+
+Linux (GPL-2.0-only; the device-tree files use the older GPL-2.0 identifier):
+
+drivers/memory/tegra/tegra186-emc.c:
+Copyright (C) 2019-2025 NVIDIA CORPORATION.  All rights reserved.
+
+drivers/net/ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c:
+Copyright (C) 2016 Joao Pinto <jpinto@synopsys.com>
+
+drivers/net/ethernet/stmicro/stmmac/stmmac_main.c:
+Copyright(C) 2007-2011 STMicroelectronics Ltd
+Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
+
+NVIDIA OOT GPL-2.0-only files:
+
+nvidia-oot/drivers/platform/tegra/mc-utils/mc-utils.c:
+Copyright (c) 2022-2023, NVIDIA CORPORATION. All rights reserved.
+
+nvidia-oot/drivers/gpu/host1x-fence/dev.c:
+Copyright (c) 2022-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+nvidia-oot/drivers/net/can/mttcan/native/m_ttcan_linux.c:
+Copyright (c) 2022-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+nvidia-oot/drivers/gpu/drm/tegra/fbdev.c:
+Copyright (C) 2012-2013 Avionic Design GmbH
+Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
+Based on the KMS/FB DMA helpers
+Copyright (C) 2012 Analog Devices Inc.
+
+NVIDIA MIT files (permission and warranty terms in nvidia-oot/COPYING):
+
+nvdisplay/kernel-open/nvidia/nv-platform.c:
+Copyright (c) 2019-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+nvdisplay/src/nvidia/src/kernel/gpu/arch/t23x/kern_gpu_t234d.c:
+Copyright (c) 2019-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+nvdisplay/src/nvidia/src/kernel/gpu/gpu_t234d_kernel.c:
+Copyright (c) 2021-2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+nvdisplay/kernel-open/nvidia/nv-pci.c:
+Copyright (c) 2019-2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+nvidia-oot/scripts/conftest/Makefile and conftest.sh:
+Copyright (c) 2023-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+The other touched nvdisplay files have no individual license header;
+nvdisplay/COPYING supplies the package's default MIT terms and notice:
+Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.

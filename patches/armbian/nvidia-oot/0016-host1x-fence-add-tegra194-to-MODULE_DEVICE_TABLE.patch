@@ -1,0 +1,24 @@
+host1x-fence: add tegra194 to MODULE_DEVICE_TABLE
+
+host1x-fence.ko only has tegra234-host1x in its MODULE_DEVICE_TABLE,
+so udev never autoloads the module on tegra194 (Xavier). The driver
+code already handles tegra194 via of_device_id in dev_file_open(),
+but without the MODULE_DEVICE_TABLE entry the module is never loaded.
+
+Add tegra194-host1x to the device table so udev triggers module
+autoload on Xavier platforms, eliminating the "failed to open
+host1x-fence device" warning from userspace.
+
+Upstream-Status: Inappropriate [platform-specific]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+
+--- a/nvidia-oot/drivers/gpu/host1x-fence/dev.c
++++ b/nvidia-oot/drivers/gpu/host1x-fence/dev.c
+@@ -500,6 +500,7 @@
+ }
+ 
+ static const struct of_device_id host1x_fence_of_match[] = {
++	{ .compatible = "nvidia,tegra194-host1x" },
+ 	{ .compatible = "nvidia,tegra234-host1x" },
+ 	{ },
+ };

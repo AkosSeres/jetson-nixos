@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-2.0-only
 { pkgs }:
 let
   name = "nvidia/tegra194-p2972-0000.dtb";

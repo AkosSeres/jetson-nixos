@@ -1,0 +1,19 @@
+nvdisplay: nv-platform: add tegra194-nvrm compatible
+
+Add "nvidia,tegra194-nvrm" to the platform device match table so that
+nvidia.ko can probe on Xavier (tegra194) platforms when a matching DT
+node is present. Uses a unique compatible string to avoid conflict with
+tegra-display-hub which claims "nvidia,tegra194-display".
+
+Upstream-Status: Inappropriate [platform-specific]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+
+--- a/nvdisplay/kernel-open/nvidia/nv-platform.c
++++ b/nvdisplay/kernel-open/nvidia/nv-platform.c
+@@ -1216,6 +1216,7 @@ const struct of_device_id nv_platform_de
+ {
+     { .compatible = "nvidia,tegra234-display",},
++    { .compatible = "nvidia,tegra194-nvrm",},
+     {},
+ };
+ MODULE_DEVICE_TABLE(of, nv_platform_device_table);

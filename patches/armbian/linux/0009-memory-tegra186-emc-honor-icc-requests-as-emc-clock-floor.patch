@@ -1,0 +1,99 @@
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Subject: [PATCH] memory: tegra: tegra186-emc: honor ICC requests as an EMC clock floor on T186/T194
+
+tegra186-emc registers an interconnect provider for Tegra186/194/234,
+but its .set callback (tegra_emc_icc_set_bw) is an empty stub: its
+comment says bandwidth is "passed to BPMP-FW in the BW set function of
+the MC driver".  That is only true on Tegra234, whose
+tegra234_mc_icc_set() sends MRQ_BWMGR_INT to the BPMP.  Tegra194 and
+Tegra186 use the generic tegra_mc_icc_ops from mc.c whose .set is ALSO
+a no-op stub.
+
+Net effect on T194: every icc_set_bw() from every client is silently
+discarded and the EMC stays at whatever conservative frequency the
+boot chain chose.  This starves latency-sensitive DMA clients (the
+on-board EQOS ethernet overflows its RX FIFO and stalls under
+sustained load at default clocks; maxing the EMC with jetson_clocks
+makes the symptom vanish).
+
+Implement the EMC provider .set for chips whose BPMP firmware does not
+support MRQ_BWMGR_INT (mc->bwmgr_mrq_supported == false, i.e. T186 and
+T194): translate the aggregated bandwidth on the EMEM node into an EMC
+clock floor via clk_set_min_rate(), following the pattern of
+tegra124-emc's emc_icc_set().  On these chips the EMC clock is a BPMP
+clock, so the rate request reaches the firmware - the debugfs min_rate
+file in this very driver already relies on exactly that.
+
+The bandwidth-to-rate divisor is the number of DRAM bytes moved per
+EMC clock cycle: 64 on 256-bit parts (AGX Xavier), 32 on 128-bit parts
+(Xavier NX).  Use 32, since the BPMP does not report the bus width
+here; on a 256-bit part the computed floor is conservative by at most
+2x, and it is only a floor - the BPMP still arbitrates upward for
+other clients and the request is dropped when consumers release it.
+
+Behaviour on T234 (bwmgr_mrq_supported) is unchanged: return 0 and let
+the MC driver's BPMP path handle it.
+
+Upstream-Status: Pending (mainline candidate; needs discussion on the
+bytes-per-cycle constant vs. querying the BPMP for the DRAM config)
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+---
+--- a/drivers/memory/tegra/tegra186-emc.c
++++ b/drivers/memory/tegra/tegra186-emc.c
+@@ -5,6 +5,7 @@
+ 
+ #include <linux/clk.h>
+ #include <linux/debugfs.h>
++#include <linux/interconnect-provider.h>
+ #include <linux/module.h>
+ #include <linux/mod_devicetable.h>
+ #include <linux/of_platform.h>
+@@ -218,16 +219,45 @@
+ }
+ 
+ /*
++ * Minimum number of DRAM bytes transferred per EMC clock cycle across
++ * supported Tegra186/Tegra194 memory configurations: 128-bit LPDDR4(X)
++ * at double data rate (Jetson Xavier NX).  256-bit parts (Jetson AGX
++ * Xavier, Jetson TX2) move 64 bytes/cycle, so for them the computed
++ * floor is conservative by at most 2x.
++ */
++#define TEGRA186_EMC_MIN_BYTES_PER_CYCLE	32
++
++/*
+  * tegra_emc_icc_set_bw() - Set BW api for EMC provider
+  * @src: ICC node for External Memory Controller (EMC)
+  * @dst: ICC node for External Memory (DRAM)
+  *
+- * Do nothing here as info to BPMP-FW is now passed in the BW set function
+- * of the MC driver. BPMP-FW sets the final Freq based on the passed values.
++ * On Tegra234 the bandwidth info is passed to the BPMP-FW via
++ * MRQ_BWMGR_INT in the MC driver's BW set function and the BPMP-FW sets
++ * the final frequency, so nothing needs to be done here.
++ *
++ * On Tegra186/Tegra194 the BPMP-FW does not implement MRQ_BWMGR_INT and
++ * the MC driver's set callback is a no-op, so translate the aggregated
++ * bandwidth into an EMC clock floor here.  The EMC clock is a BPMP
++ * clock, therefore clk_set_min_rate() reaches the firmware.
+  */
+ static int tegra_emc_icc_set_bw(struct icc_node *src, struct icc_node *dst)
+ {
+-	return 0;
++	struct tegra186_emc *emc = container_of(dst->provider,
++						struct tegra186_emc, provider);
++	struct tegra_mc *mc = dev_get_drvdata(emc->dev->parent);
++	unsigned long long rate;
++
++	/* BPMP-FW manages the frequency itself (Tegra234 and later) */
++	if (mc->bwmgr_mrq_supported)
++		return 0;
++
++	rate = max(icc_units_to_bps(dst->avg_bw),
++		   icc_units_to_bps(dst->peak_bw));
++	do_div(rate, TEGRA186_EMC_MIN_BYTES_PER_CYCLE);
++	rate = min_t(u64, rate, U32_MAX);
++
++	return clk_set_min_rate(emc->clk, rate);
+ }
+ 
+ static struct icc_node *

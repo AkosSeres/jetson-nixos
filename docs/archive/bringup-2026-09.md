@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-License-Identifier: GPL-2.0-only -->
 # Archived September 2026 bring-up record
 
 Historical build attempts, recovery steps and runtime observations. See

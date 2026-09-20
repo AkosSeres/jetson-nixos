@@ -1,0 +1,75 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Date: Fri, 17 Apr 2026 12:00:00 +0200
+Subject: [PATCH] arm64: dts: tegra194: rename thermal zones to match nvfancontrol
+
+The NVIDIA out-of-tree nvfancontrol daemon expects thermal zones to be
+named with uppercase suffixes: CPU-therm, GPU-therm, AUX-therm. The
+upstream device tree uses lowercase prefixes: cpu-thermal, gpu-thermal,
+aux-thermal. Without this rename, nvfancontrol cannot locate the
+thermal zones via sysfs and fails to start.
+
+Rename the thermal zones in both tegra194.dtsi (base definitions) and
+tegra194-p2972-0000.dts (AGX Xavier devkit override) to match the
+nvfancontrol naming convention.
+
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+---
+ arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts | 6 +++---
+ arch/arm64/boot/dts/nvidia/tegra194.dtsi           | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/nvidia/tegra194.dtsi b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+--- a/arch/arm64/boot/dts/nvidia/tegra194.dtsi
++++ b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+@@ -3137,17 +3137,17 @@
+ 	};
+
+ 	thermal-zones {
+-		cpu-thermal {
++		CPU-therm {
+ 			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_CPU>;
+ 			status = "disabled";
+ 		};
+
+-		gpu-thermal {
++		GPU-therm {
+ 			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_GPU>;
+ 			status = "disabled";
+ 		};
+
+-		aux-thermal {
++		AUX-therm {
+ 			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_AUX>;
+ 			status = "disabled";
+ 		};
+diff --git a/arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts b/arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts
+--- a/arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts
++++ b/arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts
+@@ -2418,7 +2418,7 @@
+ 	};
+
+ 	thermal-zones {
+-		cpu-thermal {
++		CPU-therm {
+ 			polling-delay = <0>;
+ 			polling-delay-passive = <500>;
+ 			status = "okay";
+@@ -2472,7 +2472,7 @@
+ 			};
+ 		};
+
+-		gpu-thermal {
++		GPU-therm {
+ 			polling-delay = <0>;
+ 			polling-delay-passive = <500>;
+ 			status = "okay";
+@@ -2486,7 +2486,7 @@
+ 			};
+ 		};
+
+-		aux-thermal {
++		AUX-therm {
+ 			polling-delay = <0>;
+ 			polling-delay-passive = <500>;
+ 			status = "okay";

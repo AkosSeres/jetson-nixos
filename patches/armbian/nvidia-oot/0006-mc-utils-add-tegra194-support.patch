@@ -1,0 +1,94 @@
+mc-utils: add tegra194 (Xavier) support
+
+mc-utils only supports tegra234 (Orin). On tegra194 (Xavier),
+module_init returns -ENODEV which prevents mc-utils from loading.
+Since nvgpu depends on mc-utils (uses emc_freq_to_bw symbol),
+this also prevents the GPU driver from loading.
+
+Add tegra194 support by reading DRAM configuration from the same
+MC/EMC hardware registers (base addresses are compatible between
+t194 and t234). tegra194 uses LPDDR4x which always operates in
+BR4 mode and does not support inline ECC.
+
+Upstream-Status: Inappropriate [platform-specific]
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+
+--- a/nvidia-oot/drivers/platform/tegra/mc-utils/mc-utils.c
++++ b/nvidia-oot/drivers/platform/tegra/mc-utils/mc-utils.c
+@@ -336,6 +336,63 @@ static struct mc_utils_ops mc_utils_t23x
+ };
+
+
++/* tegra194 (Xavier) support */
++static unsigned long dram_clk_to_mc_clk_t19x(unsigned long dram_clk)
++{
++	/* tegra194 LPDDR4x always uses burst-rate-4 mode */
++	return (dram_clk + BR4_MODE - 1) / BR4_MODE;
++}
++
++static struct mc_utils_ops mc_utils_t19x_ops = {
++	.emc_freq_to_bw = emc_freq_to_bw_t23x,
++	.emc_bw_to_freq = emc_bw_to_freq_t23x,
++	.tegra_dram_types = tegra_dram_types_t23x,
++	.get_dram_num_channels = get_dram_num_channels_t23x,
++	.dram_clk_to_mc_clk = dram_clk_to_mc_clk_t19x,
++};
++
++static int __init tegra_mc_utils_init_t19x(void)
++{
++	void __iomem *emc_base;
++	void __iomem *mcb_base;
++	u32 dram, ch;
++
++	emc_base = ioremap(EMC_BASE, 0x00010000);
++	if (!emc_base) {
++		pr_err("mc-utils: Failed to ioremap EMC\n");
++		return -ENOMEM;
++	}
++	dram = readl(emc_base + EMC_FBIO_CFG5_0) & DRAM_MASK;
++	iounmap(emc_base);
++
++	mcb_base = ioremap(MCB_BASE, MCB_SIZE);
++	if (!mcb_base) {
++		pr_err("mc-utils: Failed to ioremap MCB\n");
++		return -ENOMEM;
++	}
++	ch = readl(mcb_base + MC_EMEM_ADR_CFG_CHANNEL_ENABLE_0) & CH_MASK;
++	emc_param.rank = readl(mcb_base + MC_EMEM_ADR_CFG_0) & RANK_MASK;
++	iounmap(mcb_base);
++
++	/* tegra194 does not support inline ECC */
++	emc_param.ecc = 0;
++	emc_param.dram = dram;
++
++	while (ch) {
++		if (ch & 1)
++			ch_num++;
++		ch >>= 1;
++	}
++
++	set_dram_type();
++
++#if defined(CONFIG_DEBUG_FS)
++	tegra_mc_utils_debugfs_init();
++#endif
++	return 0;
++}
++
++
+ static int __init tegra_mc_utils_init_t23x(void)
+ {
+ 	u32 dram, ch, ecc, rank;
+@@ -397,6 +454,12 @@ static int __init tegra_mc_utils_init(vo
+ 		ops = &mc_utils_t23x_ops;
+ 		return tegra_mc_utils_init_t23x();
+ 	}
++
++	if (of_machine_is_compatible("nvidia,tegra194")) {
++		ops = &mc_utils_t19x_ops;
++		return tegra_mc_utils_init_t19x();
++	}
++
+ 	pr_err("mc-utils: Not able to find SOC DT node\n");
+ 	return -ENODEV;
+ }

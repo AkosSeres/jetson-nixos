@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-2.0-only
 {
   pkgs,
   inputs,
@@ -9,7 +9,6 @@ let
   inherit (pkgs) lib;
   sourceNames = [
     "nixpkgs"
-    "armbian"
     "nvidia-oot"
     "jetpack-r36"
     "jetpack-r35"
@@ -56,13 +55,16 @@ pkgs.runCommand "jetson-nixos-source-manifest" { } ''
   '') submodulePaths}
 
   ${lib.concatMapStringsSep "\n" (path: ''
-    test -s ${lib.escapeShellArg "${inputs.armbian}/${path}"}
+    test -s ${lib.escapeShellArg "${../. + "/${path}"}"}
   '') patches}
 
   ${lib.concatMapStringsSep "\n" (path: ''
     test -s ${path}
   '') localLinuxPatches}
 
+  test -s ${../patches/armbian/LICENSE}
+  test -s ${../patches/armbian/NOTICE}
+  test -s ${../patches/armbian/nvidia-oot/COPYING}
   test -s ${inputs.nvidia-oot}/Makefile
   test -s ${inputs.nvidia-oot}/nvidia-oot/drivers/video/tegra/nvmap/nvmap_alloc.c
   test -s ${inputs.nvidia-oot}/nvgpu/drivers/gpu/nvgpu/os/linux/linux-dma.c

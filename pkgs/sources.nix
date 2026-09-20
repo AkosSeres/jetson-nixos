@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-2.0-only
 {
   pkgs,
   inputs,
@@ -19,6 +19,10 @@ in
         name = "linux-${linuxSource.version}.tar.xz";
         path = linuxArchive;
       }
+      {
+        name = "armbian-patches";
+        path = ../patches/armbian;
+      }
     ]
     ++
       map
@@ -27,7 +31,6 @@ in
           path = inputs.${name};
         })
         [
-          "armbian"
           "nvidia-oot"
           "jetpack-r36"
           "jetpack-r35"

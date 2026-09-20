@@ -1,0 +1,112 @@
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Subject: [PATCH] net: stmmac: dwmac-dwc-qos-eth: request interconnect bandwidth on Tegra EQOS
+
+tegra186.dtsi/tegra194.dtsi describe the EQOS DMA memory paths:
+
+  interconnects = <&mc TEGRA..._MEMORY_CLIENT_EQOSR &emc>,
+                  <&mc TEGRA..._MEMORY_CLIENT_EQOSW &emc>;
+  interconnect-names = "dma-mem", "write";
+
+but no driver ever consumed them, so the memory subsystem never learns
+that the NIC is active.  On Tegra194 there is no firmware bandwidth
+manager either (MRQ_BWMGR_INT is Tegra234+), so the EMC sits at its
+conservative boot frequency and the resulting DMA latency overflows
+the EQOS RX FIFO under sustained load: RX overruns, DMA stalls and TX
+watchdog resets at default clocks, all "fixed" by jetson_clocks maxing
+the EMC.  The same gap exists in NVIDIA's downstream nvethernet driver
+(no bwmgr/ICC calls), which is why L4T shows the identical symptom.
+
+Acquire the optional "dma-mem"/"write" ICC paths in the Tegra glue and
+request bandwidth at probe.  The average is the 1 GbE line rate; the
+peak acts as a memory-frequency floor request, which the (patched)
+tegra186-emc provider converts into an EMC clk floor (~625 MHz with
+the 10 GBps default) - in the range L4T's bwmgr used for ISO clients.
+Both values are module parameters
+(dwc_eth_dwmac.eqos_icc_{avg,peak}_kbps=) so the minimal sufficient
+floor can be measured empirically.
+
+Device trees without interconnect properties get NULL paths and are
+unaffected; a not-yet-probed MC defers the probe as usual.
+
+Upstream-Status: Pending (mainline candidate; upstream would likely
+want the request tied to ndo_open/close and the floor policy debated)
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+---
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c
+@@ -10,6 +10,7 @@
+ #include <linux/device.h>
+ #include <linux/gpio/consumer.h>
+ #include <linux/ethtool.h>
++#include <linux/interconnect.h>
+ #include <linux/io.h>
+ #include <linux/iopoll.h>
+ #include <linux/ioport.h>
+@@ -33,6 +34,55 @@
+ 	struct gpio_desc *reset;
+ };
+ 
++/*
++ * Bandwidth requested on the "dma-mem" (read) and "write" interconnect
++ * paths (MC memory clients EQOSR/EQOSW towards the EMC).  The average
++ * is the 1 GbE line rate.  The peak acts as a memory frequency floor
++ * request: on Tegra194 no firmware bandwidth manager exists, so DMA
++ * latency at the BPMP's boot EMC frequency is high enough to overflow
++ * the EQOS RX FIFO and stall the DMA under sustained load.  The default
++ * (10 GBps per direction) maps to an EMC floor of ~625 MHz via the
++ * tegra186-emc provider, matching the range L4T's bwmgr used for ISO
++ * clients.  Tunable for measurement via
++ * dwc_eth_dwmac.eqos_icc_peak_kbps= on the kernel command line.
++ */
++static unsigned int eqos_icc_avg_kbps = 125000;
++module_param(eqos_icc_avg_kbps, uint, 0644);
++MODULE_PARM_DESC(eqos_icc_avg_kbps, "Average DRAM bandwidth request per direction (kBps)");
++
++static unsigned int eqos_icc_peak_kbps = 10000000;
++module_param(eqos_icc_peak_kbps, uint, 0644);
++MODULE_PARM_DESC(eqos_icc_peak_kbps, "Peak DRAM bandwidth request per direction (kBps), acts as EMC floor");
++
++static int tegra_eqos_init_icc(struct device *dev)
++{
++	struct icc_path *read, *write;
++	int err;
++
++	/* Optional: absent from pre-interconnect device trees */
++	read = devm_of_icc_get(dev, "dma-mem");
++	if (IS_ERR(read))
++		return PTR_ERR(read);
++
++	write = devm_of_icc_get(dev, "write");
++	if (IS_ERR(write))
++		return PTR_ERR(write);
++
++	if (read) {
++		err = icc_set_bw(read, eqos_icc_avg_kbps, eqos_icc_peak_kbps);
++		if (err)
++			return err;
++	}
++
++	if (write) {
++		err = icc_set_bw(write, eqos_icc_avg_kbps, eqos_icc_peak_kbps);
++		if (err)
++			return err;
++	}
++
++	return 0;
++}
++
+ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
+ 				   struct plat_stmmacenet_data *plat_dat)
+ {
+@@ -224,6 +274,11 @@
+ 	if (!is_of_node(dev->fwnode))
+ 		goto bypass_clk_reset_gpio;
+ 
++	err = tegra_eqos_init_icc(dev);
++	if (err)
++		return dev_err_probe(dev, err,
++				     "failed to request interconnect bandwidth\n");
++
+ 	plat_dat->clk_tx_i = stmmac_pltfr_find_clk(plat_dat, "tx");
+ 
+ 	eqos->reset = devm_gpiod_get(&pdev->dev, "phy-reset", GPIOD_OUT_HIGH);

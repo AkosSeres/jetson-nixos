@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Date: Fri, 17 Apr 2026 16:00:00 +0200
+Subject: [PATCH] arm64: dts: tegra194: rename and enable Tj thermal zone for
+ jetson_clocks
+
+NVIDIA's jetson_clocks utility searches thermal zones by name for the
+junction temperature sensor using:
+
+    grep -il tj /sys/class/thermal/thermal_zone*/type
+
+For the match to work, the BPMP TJ_MAX thermal zone must be:
+  1. registered in sysfs (status = "okay")
+  2. named with "tj" in the type string
+
+The upstream DTS defines the zone as "tj-thermal" but with
+status = "disabled", which hides it from /sys/class/thermal entirely.
+
+Rename to "Tj-therm" (matching CPU-therm / GPU-therm / AUX-therm
+convention from patch 0006) and enable it in the p2972 board DTS.
+Without this, jetson_clocks emits "dirname: missing operand" and
+"Failed to find policy of Tj thermal zone!" errors.
+
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+---
+ arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts | 6 ++++++
+ arch/arm64/boot/dts/nvidia/tegra194.dtsi           | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/nvidia/tegra194.dtsi b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+--- a/arch/arm64/boot/dts/nvidia/tegra194.dtsi
++++ b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+@@ -3165,7 +3165,7 @@
+ 			status = "disabled";
+ 		};
+
+-		tj-thermal {
++		Tj-therm {
+ 			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_TJ_MAX>;
+ 			status = "disabled";
+ 		};
+diff --git a/arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts b/arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts
+--- a/arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts
++++ b/arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts
+@@ -2498,6 +2498,12 @@
+ 					type = "critical";
+ 				};
+ 			};
+ 		};
++
++		Tj-therm {
++			polling-delay = <0>;
++			polling-delay-passive = <500>;
++			status = "okay";
++		};
+ 	};
+ };

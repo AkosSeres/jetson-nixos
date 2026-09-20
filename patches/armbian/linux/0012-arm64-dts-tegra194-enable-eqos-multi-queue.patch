@@ -1,0 +1,111 @@
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Subject: [PATCH] arm64: dts: tegra194: enable EQOS multi-queue operation
+
+The Tegra194 EQOS node carries no snps,mtl-rx-config / snps,mtl-tx-config
+subnodes.  stmmac_mtl_setup() therefore falls back to its hardcoded
+default of a single RX and a single TX queue:
+
+	plat->rx_queues_to_use = 1;
+	plat->tx_queues_to_use = 1;
+
+so the whole gigabit RX path is served by one DMA channel driven by one
+NAPI context.  With the single shared MAC interrupt this pins all RX
+softirq processing to a single CPU; on a Xavier devkit /proc/interrupts
+shows every one of the ~415k end0 interrupts landing on CPU0 while the
+remaining seven cores stay idle.
+
+The hardware is not so limited.  MAC_HW_Feature2 reports four RX and
+four TX DMA channels and four RX/TX MTL queues (dwmac4_get_hw_feature()
+adds one to the raw RXCHCNT/TXCHCNT fields, so the value surfaced in
+debugfs is already the total, despite the "Additional" label):
+
+	Number of Additional RX channel: 4
+	Number of Additional TX channel: 4
+	Number of Additional RX queues: 4
+	Number of Additional TX queues: 4
+
+Describe all four queues in DT.  Strict-priority scheduling and the
+identity queue-to-channel mapping match the defaults used by other
+dwc-qos-ethernet-4.10 users.  The 64 KiB RX and TX FIFOs are split
+evenly by the driver, leaving 16 KiB per queue, which is still well
+above the 8 KiB threshold at which dwmac4 enables store-and-forward.
+
+Per-channel interrupts are deliberately not added: stmmac_dma_interrupt()
+iterates channels_to_check and services every DMA channel from the single
+MAC interrupt, so multi-queue does not depend on the multi-MSI path.
+Splitting the interrupt would be a separate change.
+
+Note that enabling multi-queue on stmmac has regressed other platforms
+before -- sa8155p ended up reverting to a single queue after RX stalls --
+so this must be validated under sustained load together with the RX
+refill fix carried as patch 0011.
+
+Upstream-Status: Pending (candidate for upstream; queue count taken from
+the IP's own MAC_HW_Feature2 register on T194)
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+---
+--- a/arch/arm64/boot/dts/nvidia/tegra194.dtsi
++++ b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+@@ -164,6 +164,62 @@
+ 			snps,burst-map = <0x7>;
+ 			snps,txpbl = <16>;
+ 			snps,rxpbl = <8>;
++			snps,mtl-rx-config = <&eqos_mtl_rx_setup>;
++			snps,mtl-tx-config = <&eqos_mtl_tx_setup>;
++
++			eqos_mtl_rx_setup: rx-queues-config {
++				snps,rx-queues-to-use = <4>;
++				snps,rx-sched-sp;
++
++				queue0 {
++					snps,dcb-algorithm;
++					snps,priority = <0x1>;
++					snps,map-to-dma-channel = <0>;
++				};
++
++				queue1 {
++					snps,dcb-algorithm;
++					snps,priority = <0x2>;
++					snps,map-to-dma-channel = <1>;
++				};
++
++				queue2 {
++					snps,dcb-algorithm;
++					snps,priority = <0x4>;
++					snps,map-to-dma-channel = <2>;
++				};
++
++				queue3 {
++					snps,dcb-algorithm;
++					snps,priority = <0x8>;
++					snps,map-to-dma-channel = <3>;
++				};
++			};
++
++			eqos_mtl_tx_setup: tx-queues-config {
++				snps,tx-queues-to-use = <4>;
++				snps,tx-sched-sp;
++
++				queue0 {
++					snps,dcb-algorithm;
++					snps,priority = <0x1>;
++				};
++
++				queue1 {
++					snps,dcb-algorithm;
++					snps,priority = <0x2>;
++				};
++
++				queue2 {
++					snps,dcb-algorithm;
++					snps,priority = <0x4>;
++				};
++
++				queue3 {
++					snps,dcb-algorithm;
++					snps,priority = <0x8>;
++				};
++			};
+ 		};
+ 
+ 		gpcdma: dma-controller@2600000 {

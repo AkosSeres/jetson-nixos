@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+Date: Fri, 17 Apr 2026 12:00:00 +0200
+Subject: [PATCH] arm64: dts: tegra194: add nvidia-nvrm node for NVRM
+
+The NVIDIA out-of-tree nvidia.ko driver (from nvdisplay) requires a
+device tree node with compatible = "nvidia,tegra194-nvrm" to probe
+as a platform device. On Xavier, nvidia.ko serves as NVRM resource
+manager only (display is handled by tegra-drm.ko). Uses a unique
+compatible string to avoid conflict with tegra-display-hub which
+claims "nvidia,tegra194-display".
+
+The nvidia,disp-sw-soc-chip-id property encodes the HIDREV register
+value: CHIPID=0x19 in bits[15:8], MAJORREV=0x4 in bits[7:4], giving
+the raw value 0x1940. The driver computes:
+  hidrev = (CHIPID << 4) | MAJORREV = 0x194
+
+This is a minimal node with no MMIO regions or interrupts since display
+hardware is managed by tegra-drm.ko.
+
+Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
+---
+ arch/arm64/boot/dts/nvidia/tegra194.dtsi | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/nvidia/tegra194.dtsi b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+--- a/arch/arm64/boot/dts/nvidia/tegra194.dtsi
++++ b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+@@ -3186,4 +3186,10 @@
+ 		compatible = "nvidia,carveouts-t19x";
+ 		status = "okay";
+ 	};
++
++	nvidia-nvrm {
++		compatible = "nvidia,tegra194-nvrm";
++		nvidia,disp-sw-soc-chip-id = <0x1940>;
++		status = "okay";
++	};
+ };
