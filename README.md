@@ -18,8 +18,7 @@ must pass the full patch, build, boot, CUDA, networking, and sustained-workload
 validation gates before replacing the validated 6.18.46 pin.
 
 The first hardware milestone is headless CUDA, NvMap accounting, and
-GPU containers/K3s, with working networking, storage, and thermal control.
-llama.cpp is an optional later workload, not a first-milestone requirement.
+GPU containers, with working networking, storage, and thermal control.
 Display, camera, hardware video, TensorRT, and cuDNN are not first-milestone
 requirements; TensorRT/cuDNN remain possible follow-up work, not promised support.
 
@@ -71,7 +70,7 @@ The final mainline DTB receives 64 KiB of padding for UEFI updates, after any
 NixOS overlays. This does not rebuild the kernel; the initial FDT boot failure
 and its correction are recorded in the archived bring-up notes.
 
-Keep hostnames, disks, users, secrets, K3s policy, llama.cpp and boot selection
+Keep hostnames, disks, users, secrets, workload policy and boot selection
 in the consuming NixOS configuration. Validate a candidate before promoting it
 to normal host outputs, retaining known-good boot generations for recovery.
 Use `nixos-rebuild boot` and a coordinated reboot for kernel/driver changes.

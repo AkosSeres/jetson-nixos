@@ -181,7 +181,6 @@ in
           before = [
             "docker.service"
             "podman.service"
-            "k3s.service"
           ];
         };
       })

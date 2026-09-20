@@ -80,6 +80,6 @@ journalctl -k -b
    tests, container execution, NvMap accounting/release/limits and thermal/fan
    behaviour. Record the exact running closure and duration of sustained tests.
 
-llama.cpp remains an optional consumer workload. Display, camera and hardware
-video support are outside the headless scope. A configuration check is not a
-hardware validation or a claim of complete platform support.
+Display, camera and hardware video support are outside the headless scope.
+A configuration check is not hardware validation or a claim of complete
+platform support.

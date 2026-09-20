@@ -8,7 +8,7 @@ These are the implementation boundaries for the experimental headless port.
 This repository owns reusable source pins, patches, kernel/OOT packaging,
 selected userspace/firmware packaging, and an opt-in Xavier NixOS module.
 
-Consuming configurations own host configuration, K3s policy, secrets,
+Consuming configurations own host configuration, workload policy, secrets,
 boot-generation selection, and deployment. Consume this project as a locked
 flake input.
 Validate new candidates separately before promoting normal host outputs.
@@ -29,8 +29,6 @@ output does not imply that the validation gates below have passed.
 - Preserve the Xavier `sm_72` target and native Jetson aarch64 CUDA package
   selection. The nixpkgs CUDA 12.6/SM 7.2 policy override must be experimental and
   scoped; do not modify production CUDA or claim an SM 8.7 GPU.
-- Optional llama.cpp builds should follow the host-selected CUDA package set. Toolchain/compiler
-  compatibility still needs a real CUDA build and runtime test.
 
 For CMake consumers with strict dependency isolation, keep nvcc in native build
 inputs and CUDA libraries in host build inputs. If the project calls
@@ -120,7 +118,6 @@ ACPI is the right mode for this port merely because an ACPI installer boots.
 1. Build the kernel, DTB, and OOT modules; inspect configuration, module ownership,
    dependencies, and installed filenames.
 2. Build selected firmware/userspace and the SM 7.2 CUDA smoke test.
-   llama.cpp is optional follow-up work, not a gate for the initial milestone.
 3. Build a complete candidate NixOS system and retain a known-good boot generation.
 4. Coordinate one test node, recovery access, free boot-partition space, retained
    stable generations, and workloads before any boot change.
