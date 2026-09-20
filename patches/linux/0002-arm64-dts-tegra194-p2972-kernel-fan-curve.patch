@@ -1,0 +1,120 @@
+From: jetson-nixos contributors
+Subject: [PATCH] arm64: dts: tegra194: use active trips for Xavier fan
+
+The step_wise governor deliberately skips hot and critical trips, so the
+existing P2972 cooling maps can only select fan states zero and one.  This
+leaves the fan at no more than 25 percent duty even as the board approaches
+its critical shutdown temperatures.
+
+Replace the ineffective hot and critical cooling maps with active fan trips.
+Start low cooling around the board's normal idle temperature, select medium
+cooling at 60 C, and force full cooling at 75 C.  Apply the same curve to the
+GPU zone so a GPU-heavy workload can drive the shared fan independently of
+CPU temperature.  Four degrees of hysteresis avoids rapid state changes.
+
+Keep every existing hot and critical trip unchanged, including the CPU, GPU,
+and AUX critical shutdown thresholds.  Thermal policy therefore remains with
+the kernel; no userspace governor or direct PWM writer is required.
+
+SPDX-License-Identifier: GPL-2.0-only
+---
+ arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts | 69 ++++++++++++++++++----
+ 1 file changed, 58 insertions(+), 11 deletions(-)
+
+--- a/arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts
++++ b/arch/arm64/boot/dts/nvidia/tegra194-p2972-0000.dts
+@@ -2436,9 +2436,21 @@
+ 					type = "hot";
+ 				};
+ 
+-				cpu_trip_active: active {
+-					temperature = <50000>;
+-					hysteresis = <2000>;
++				cpu_trip_fan_low: fan-low {
++					temperature = <45000>;
++					hysteresis = <4000>;
++					type = "active";
++				};
++
++				cpu_trip_fan_medium: fan-medium {
++					temperature = <60000>;
++					hysteresis = <4000>;
++					type = "active";
++				};
++
++				cpu_trip_fan_full: fan-full {
++					temperature = <75000>;
++					hysteresis = <4000>;
+ 					type = "active";
+ 				};
+ 
+@@ -2450,19 +2462,19 @@
+ 			};
+ 
+ 			cooling-maps {
+-				cpu-critical {
+-					cooling-device = <&fan 3 3>;
+-					trip = <&cpu_trip_critical>;
++				cpu-fan-low {
++					cooling-device = <&fan 1 1>;
++					trip = <&cpu_trip_fan_low>;
+ 				};
+ 
+-				cpu-hot {
++				cpu-fan-medium {
+ 					cooling-device = <&fan 2 2>;
+-					trip = <&cpu_trip_hot>;
++					trip = <&cpu_trip_fan_medium>;
+ 				};
+ 
+-				cpu-active {
+-					cooling-device = <&fan 1 1>;
+-					trip = <&cpu_trip_active>;
++				cpu-fan-full {
++					cooling-device = <&fan 3 3>;
++					trip = <&cpu_trip_fan_full>;
+ 				};
+ 
+ 				cpu-passive {
+@@ -2483,6 +2495,41 @@
+ 					hysteresis = <0>;
+ 					type = "critical";
+ 				};
++
++				gpu_trip_fan_low: fan-low {
++					temperature = <45000>;
++					hysteresis = <4000>;
++					type = "active";
++				};
++
++				gpu_trip_fan_medium: fan-medium {
++					temperature = <60000>;
++					hysteresis = <4000>;
++					type = "active";
++				};
++
++				gpu_trip_fan_full: fan-full {
++					temperature = <75000>;
++					hysteresis = <4000>;
++					type = "active";
++				};
++			};
++
++			cooling-maps {
++				gpu-fan-low {
++					cooling-device = <&fan 1 1>;
++					trip = <&gpu_trip_fan_low>;
++				};
++
++				gpu-fan-medium {
++					cooling-device = <&fan 2 2>;
++					trip = <&gpu_trip_fan_medium>;
++				};
++
++				gpu-fan-full {
++					cooling-device = <&fan 3 3>;
++					trip = <&gpu_trip_fan_full>;
++				};
+ 			};
+ 		};
+ 

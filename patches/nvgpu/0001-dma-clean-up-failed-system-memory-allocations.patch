@@ -1,0 +1,39 @@
+From: Akos Seres <seresakos2000@gmail.com>
+Date: Sat, 12 Sep 2026 15:08:54 +0000
+Subject: [PATCH] gpu: nvgpu: clean up failed system-memory allocations
+SPDX-License-Identifier: GPL-2.0-only
+
+Match the allocation and free helpers when NVGPU_MM_BYPASSES_IOMMU is
+enabled, as it is on Xavier. The non-contiguous allocation returns a
+pages array, so its failure path must use nvgpu_dma_free_no_iommu(),
+matching the normal free path. Clear the saved pages pointer afterward.
+
+Also release any partial scatterlist state before freeing its container.
+
+Adapted for OE4T linux-nvgpu d530a48d64f9ad3020d9f3307f53e8dde8e3fba1.
+
+Upstream-Status: Pending
+Signed-off-by: Akos Seres <seresakos2000@gmail.com>
+
+diff --git a/nvgpu/drivers/gpu/nvgpu/os/linux/linux-dma.c b/nvgpu/drivers/gpu/nvgpu/os/linux/linux-dma.c
+--- a/nvgpu/drivers/gpu/nvgpu/os/linux/linux-dma.c
++++ b/nvgpu/drivers/gpu/nvgpu/os/linux/linux-dma.c
+@@ -328,7 +328,11 @@ fail_free_sgt:
+ 	nvgpu_free_sgtable(g, &mem->priv.sgt);
+ fail_free_dma:
+-	dma_free_attrs(d, size, alloc_ret, iova, dma_attrs);
++	if (nvgpu_nvlink_non_contig(g, flags))
++		nvgpu_dma_free_no_iommu(size, alloc_ret);
++	else
++		dma_free_attrs(d, size, alloc_ret, iova, dma_attrs);
+ 	mem->cpu_va = NULL;
++	mem->priv.pages = NULL;
+ 	mem->priv.sgt = NULL;
+ 	mem->size = 0;
+ 	g->dma_memory_used -= size;
+@@ -642,2 +646,4 @@ int nvgpu_get_sgtable_from_pages(struct gk20a *g, struct sg_table **sgt,
+-	if (tbl)
++	if (tbl) {
++		sg_free_table(tbl);
+ 		nvgpu_kfree(g, tbl);
++	}

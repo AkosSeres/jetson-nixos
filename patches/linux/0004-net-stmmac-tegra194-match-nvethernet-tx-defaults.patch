@@ -1,0 +1,91 @@
+SPDX-FileCopyrightText: 2026 Akos Seres
+SPDX-License-Identifier: GPL-2.0-only
+
+Subject: [PATCH] net: stmmac: use Xavier's validated nvethernet TX policy
+
+Give Tegra194 a 1024-descriptor TX ring and a 256-us / 5-frame completion
+cadence. These values reproduce the NVIDIA nvethernet policy observed during
+Xavier bring-up. Keep other stmmac platforms' defaults unchanged, and retain
+the shared interrupt and enabled hardware TSO used by the validated baseline.
+
+The pinned OE4T superproject 3428d01926de97ca8b0f25fe6edd9c76e19472a1
+contains the reference ring selection and nvidia,tx_usecs / nvidia,tx_frames
+handling in nvidia-oot/drivers/net/ethernet/nvidia/nvethernet/ether_linux.c
+(linux-nv-oot gitlink ccf7646c57462776fe1093af6643c54653f59861).
+Runtime evidence and its observation window are recorded in docs/validation.md.
+
+Target: Linux 6.18.46 after the pinned Armbian reference patches.
+Upstream-Status: Inappropriate [local hardware-validated tuning policy]
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c
+index e0ee1e243..073a842fa 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c
+@@ -358,6 +358,18 @@ static const struct dwc_eth_dwmac_data fsd_eqos_data = {
+ 	.stmmac_clk_name = "slave_bus",
+ };
+ 
++static void dwc_eth_dwmac_tegra194_tx_defaults(struct platform_device *pdev,
++					       struct plat_stmmacenet_data *plat)
++{
++	if (!of_device_is_compatible(pdev->dev.of_node, "nvidia,tegra194-eqos"))
++		return;
++
++	/* Match the production nvethernet TX descriptor/completion policy. */
++	plat->tx_ring_size = 1024;
++	plat->tx_coal_timer = 256;
++	plat->tx_coal_frames = 5;
++}
++
+ static int dwc_eth_dwmac_probe(struct platform_device *pdev)
+ {
+ 	const struct dwc_eth_dwmac_data *data;
+@@ -386,6 +398,8 @@ static int dwc_eth_dwmac_probe(struct platform_device *pdev)
+ 	if (IS_ERR(plat_dat))
+ 		return PTR_ERR(plat_dat);
+ 
++	dwc_eth_dwmac_tegra194_tx_defaults(pdev, plat_dat);
++
+ 	ret = devm_clk_bulk_get_all_enabled(&pdev->dev, &plat_dat->clks);
+ 	if (ret < 0)
+ 		return dev_err_probe(&pdev->dev, ret, "Failed to retrieve and enable all required clocks\n");
+diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+index 513057ce2..bab718542 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
++++ b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+@@ -3160,8 +3160,10 @@ static void stmmac_init_coalesce(struct stmmac_priv *priv)
+ 	for (chan = 0; chan < tx_channel_count; chan++) {
+ 		struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[chan];
+ 
+-		priv->tx_coal_frames[chan] = STMMAC_TX_FRAMES;
+-		priv->tx_coal_timer[chan] = STMMAC_COAL_TX_TIMER;
++		priv->tx_coal_frames[chan] = priv->plat->tx_coal_frames ?
++			priv->plat->tx_coal_frames : STMMAC_TX_FRAMES;
++		priv->tx_coal_timer[chan] = priv->plat->tx_coal_timer ?
++			priv->plat->tx_coal_timer : STMMAC_COAL_TX_TIMER;
+ 
+ 		hrtimer_setup(&tx_q->txtimer, stmmac_tx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+ 	}
+@@ -7443,6 +7445,8 @@ int stmmac_dvr_probe(struct device *device,
+ 	stmmac_set_ethtool_ops(ndev);
+ 	priv->pause_time = pause;
+ 	priv->plat = plat_dat;
++	if (priv->plat->tx_ring_size)
++		priv->dma_conf.dma_tx_size = priv->plat->tx_ring_size;
+ 	priv->ioaddr = res->addr;
+ 	priv->dev->base_addr = (unsigned long)res->addr;
+ 	priv->plat->dma_cfg->multi_msi_en =
+diff --git a/include/linux/stmmac.h b/include/linux/stmmac.h
+index 7e989d0ed..34358575c 100644
+--- a/include/linux/stmmac.h
++++ b/include/linux/stmmac.h
+@@ -241,6 +241,9 @@ struct plat_stmmacenet_data {
+ 	int unicast_filter_entries;
+ 	int tx_fifo_size;
+ 	int rx_fifo_size;
++	u32 tx_ring_size;
++	u32 tx_coal_frames;
++	u32 tx_coal_timer;
+ 	u32 host_dma_width;
+ 	u32 rx_queues_to_use;
+ 	u32 tx_queues_to_use;
