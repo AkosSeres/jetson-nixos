@@ -43,6 +43,8 @@
     {
       lib = {
         inherit linuxSource patchSeries;
+        # Consumers can validate their final NixOS kernel after adding policy.
+        mkKernelContract = import ./checks/kernel-contract.nix;
       };
 
       overlays.default = overlay;

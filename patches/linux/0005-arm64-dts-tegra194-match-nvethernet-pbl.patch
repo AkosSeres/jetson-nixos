@@ -1,3 +1,21 @@
+SPDX-FileCopyrightText: 2026 Akos Seres
+SPDX-License-Identifier: GPL-2.0-only
+
+Subject: [PATCH] arm64: dts: tegra194: match nvethernet's EQOS DMA bursts
+
+Use TX/RX programmable burst lengths of 32/12 with the existing PBLx8 policy.
+This matches EQOS_DMA_CHX_TX_CTRL_TXPBL_RECOMMENDED (0x200000) and
+EQOS_DMA_CHX_RX_CTRL_RXPBL_RECOMMENDED (0xC0000) in nvethernetrm/osi/dma/
+eqos_dma.h, used by osi_dma.c in the pinned OE4T superproject
+3428d01926de97ca8b0f25fe6edd9c76e19472a1
+(nvethernetrm gitlink 22e582e01d1c9c258ac56873f1aa0822acb695f3).
+
+Retain the reference four-queue configuration and shared interrupt topology.
+The bounded runtime validation is recorded in docs/validation.md.
+
+Target: Linux 6.18.46 after the pinned Armbian reference patches.
+Upstream-Status: Inappropriate [local hardware-validated tuning policy]
+
 diff --git a/arch/arm64/boot/dts/nvidia/tegra194.dtsi b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
 index 7dd1b1989..da89d547a 100644
 --- a/arch/arm64/boot/dts/nvidia/tegra194.dtsi

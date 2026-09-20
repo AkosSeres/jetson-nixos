@@ -1,3 +1,22 @@
+SPDX-FileCopyrightText: 2026 Akos Seres
+SPDX-License-Identifier: GPL-2.0-only
+
+Subject: [PATCH] net: stmmac: use Xavier's validated nvethernet TX policy
+
+Give Tegra194 a 1024-descriptor TX ring and a 256-us / 5-frame completion
+cadence. These values reproduce the NVIDIA nvethernet policy observed during
+Xavier bring-up. Keep other stmmac platforms' defaults unchanged, and retain
+the shared interrupt and enabled hardware TSO used by the validated baseline.
+
+The pinned OE4T superproject 3428d01926de97ca8b0f25fe6edd9c76e19472a1
+contains the reference ring selection and nvidia,tx_usecs / nvidia,tx_frames
+handling in nvidia-oot/drivers/net/ethernet/nvidia/nvethernet/ether_linux.c
+(linux-nv-oot gitlink ccf7646c57462776fe1093af6643c54653f59861).
+Runtime evidence and its observation window are recorded in docs/validation.md.
+
+Target: Linux 6.18.46 after the pinned Armbian reference patches.
+Upstream-Status: Inappropriate [local hardware-validated tuning policy]
+
 diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c
 index e0ee1e243..073a842fa 100644
 --- a/drivers/net/ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c

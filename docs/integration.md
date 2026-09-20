@@ -11,8 +11,9 @@ selected userspace/firmware packaging, and an opt-in Xavier NixOS module.
 Consuming configurations own host configuration, K3s policy, secrets,
 boot-generation selection, and deployment. Consume this project as a locked
 flake input.
-Keep production Xavier outputs unchanged. Experimental outputs are separate;
-their existence does not imply that the validation gates below have passed.
+Validate new candidates separately before promoting normal host outputs.
+Retain known-good boot generations for recovery after promotion; declaring an
+output does not imply that the validation gates below have passed.
 
 ## Stack separation
 
@@ -68,7 +69,7 @@ requires the node service; creating the nodes alone does not prove a working GPU
 - Exclude optional OOT camera, audio, SPI, VSE/SE and CEC providers in the headless
   build. Check normalized installed module names against the mainline inventory;
   Linux treats hyphens and underscores as equivalent in module names.
-- `checks/kernel-contract.nix` checks the generated configuration, including
+- `lib.mkKernelContract` checks the generated configuration, including
   NvMap's DMA shared-buffer/PMEM/CMA dependencies, DRM helpers, storage, Ethernet,
   namespaces, cgroups and container networking. `ARM64_PMEM` selects
   `ARCH_HAS_PMEM_API`. Use 4 KiB pages.
@@ -120,7 +121,7 @@ ACPI is the right mode for this port merely because an ACPI installer boots.
    dependencies, and installed filenames.
 2. Build selected firmware/userspace and the SM 7.2 CUDA smoke test.
    llama.cpp is optional follow-up work, not a gate for the initial milestone.
-3. Build a complete experimental NixOS system with stable configurations intact.
+3. Build a complete candidate NixOS system and retain a known-good boot generation.
 4. Coordinate one test node, recovery access, free boot-partition space, retained
    stable generations, and workloads before any boot change.
 5. Boot a coherent kernel/userspace generation. Validate networking, storage,

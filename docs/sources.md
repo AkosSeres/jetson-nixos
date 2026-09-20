@@ -181,8 +181,9 @@ final selected DTB. No additional source pin or firmware patch is introduced.
 
 The original staged P2972 DTB was valid and byte-identical to its build output,
 but its 128,354-byte declared size ended exactly at the end of its strings block:
-zero free capacity. The padding candidate preserves its tree contents. Neither
-offline checks nor the source evidence establish successful hardware boot.
+zero free capacity. Padding preserves its tree contents. Subsequent successful
+hardware boots are recorded separately in [validation.md](validation.md);
+the precise firmware failure mechanism remains inferred from source evidence.
 
 ## Updating pins
 

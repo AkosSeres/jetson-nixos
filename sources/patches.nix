@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Ordered paths inside the locked Armbian input. This is provenance metadata;
-# the patches retain their upstream terms and are not applied by this scaffold.
+# the patches retain their upstream terms and are applied by the kernel/OOT packages.
 let
   linuxRoot = "patch/kernel/archive/uefi-arm64-6.18";
   ootRoot = "extensions/jetson-l4t/files/dkms";

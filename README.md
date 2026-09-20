@@ -7,8 +7,9 @@ AGX Xavier (T194 / GV11B, `sm_72`). This is not an NVIDIA-supported Xavier BSP.
 ## Current status
 
 The experimental stack has booted and passed CUDA and container workload tests
-on two AGX Xavier systems. Full platform and sustained-workload validation is
-still incomplete. Do not deploy it over a running production kernel.
+on two AGX Xavier systems. The final EQOS tuning has a dated canary observation
+in [the validation record](docs/validation.md); the second system runs an older
+configuration. Full platform and sustained-workload validation is incomplete.
 
 The known-good baseline uses Linux **6.18.46**, the audited OE4T R36.5
 out-of-tree sources, R36.4.4 driver userspace, and selected R35.6.5 Xavier firmware.
@@ -68,12 +69,18 @@ libraries, and selected R35.6.5 firmware. OOT owns host1x/tegra-drm; mainline ow
 BPMP and MC/EMC. A kernel-managed fan curve replaces vendor nvfancontrol.
 The final mainline DTB receives 64 KiB of padding for UEFI updates, after any
 NixOS overlays. This does not rebuild the kernel; the initial FDT boot failure
-and the padding candidate's validation status are recorded in the validation notes.
+and its correction are recorded in the archived bring-up notes.
 
 Keep hostnames, disks, users, secrets, K3s policy, llama.cpp and boot selection
-in the consuming NixOS configuration. Add a separate experimental system output
-and preserve the existing production configuration. Never use `nixos-rebuild switch` to
-mix the new driver userspace with a running 5.10 kernel.
+in the consuming NixOS configuration. Validate a candidate before promoting it
+to normal host outputs, retaining known-good boot generations for recovery.
+Use `nixos-rebuild boot` and a coordinated reboot for kernel/driver changes.
+
+To share the consumer's package set, set
+`inputs.jetson-nixos.inputs.nixpkgs.follows = "nixpkgs"` (or its host-specific
+input name). This also changes the private CUDA/userspace package set; validate
+the resulting closure. Use `lib.mkKernelContract` to check the final NixOS
+kernel after consumer configuration changes.
 
 ## Repository layout
 
@@ -92,7 +99,7 @@ mix the new driver userspace with a running 5.10 kernel.
 ## Private repository access
 
 Use Git-based HTTPS when consuming this repository with the GitHub credential
-helper, for example after the implementation is published:
+helper:
 
 ```nix
 inputs.jetson-nixos = {
