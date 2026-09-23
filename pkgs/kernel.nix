@@ -42,6 +42,10 @@ pkgs.buildLinux {
         name = "tegra194-eqos-nvethernet-pbl";
         patch = ../patches/linux/0005-arm64-dts-tegra194-match-nvethernet-pbl.patch;
       }
+      {
+        name = "stmmac-close-reset-irq-window";
+        patch = ../patches/linux/0006-net-stmmac-close-reset-irq-window.patch;
+      }
     ];
   structuredExtraConfig = import ./kernel-config.nix { inherit (pkgs) lib; };
 }

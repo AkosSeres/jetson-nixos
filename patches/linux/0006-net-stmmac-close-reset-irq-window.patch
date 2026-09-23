@@ -1,0 +1,50 @@
+From: yangg9 <yangg9@xiaopeng.com>
+Date: Fri, 20 Mar 2026 14:19:55 +0800
+Subject: [PATCH] net: stmmac: close reset IRQ window and avoid double free
+
+During reset, stmmac_reset_subtask() used to set STMMAC_DOWN before IRQs
+were freed in __stmmac_release(). That leaves a window where interrupts can
+still fire after the device is marked down, which may lead to interrupt
+storms while the interface is transitioning.
+
+Move stmmac_free_irq() earlier in the reset flow, before setting
+STMMAC_DOWN, so the reset path no longer has that interrupt window.
+Since IRQs are now released in stmmac_reset_subtask(), guard IRQ release in
+__stmmac_release() with STMMAC_DOWN to avoid a second free_irq() during the
+same reset sequence.
+
+This removes the interrupt-storm window in reset and prevents double IRQ
+release.
+
+Link: https://lists.openwall.net/netdev/2026/03/20/74
+Signed-off-by: yangg9 <yangg9@xiaopeng.com>
+---
+ drivers/net/ethernet/stmicro/stmmac/stmmac_main.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+--- a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
++++ b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+@@ -4013,8 +4013,9 @@ static void __stmmac_release(struct net_device *dev)
+ 
+ 	netif_tx_disable(dev);
+ 
+-	/* Free the IRQ lines */
+-	stmmac_free_irq(dev, REQ_IRQ_ERR_ALL, 0);
++	/* In reset flow IRQs can be freed before dev_close(). */
++	if (!test_bit(STMMAC_DOWN, &priv->state))
++		stmmac_free_irq(dev, REQ_IRQ_ERR_ALL, 0);
+ 
+ 	/* Stop TX/RX DMA and clear the descriptors */
+ 	stmmac_stop_all_dma(priv);
+@@ -7118,6 +7119,8 @@ static void stmmac_reset_subtask(struct stmmac_priv *priv)
+ 	while (test_and_set_bit(STMMAC_RESETING, &priv->state))
+ 		usleep_range(1000, 2000);
+ 
++	stmmac_free_irq(priv->dev, REQ_IRQ_ERR_ALL, 0);
++
+ 	set_bit(STMMAC_DOWN, &priv->state);
+ 	dev_close(priv->dev);
+ 	dev_open(priv->dev, NULL);
+-- 
+2.43.0
