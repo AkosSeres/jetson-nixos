@@ -24,7 +24,7 @@ kernel configuration.
 
 The current EQOS baseline was observed on one canary from **2026-09-19
 00:34 UTC through 2026-09-20 11:50 UTC**, approximately 35 hours under ordinary
-cluster traffic. Read-only checks at the end of that window found:
+network traffic. Read-only checks at the end of that window found:
 
 - the expected queues, shared interrupt, TX ring/coalescing and enabled TSO;
 - no failed systemd units, interface RX/TX errors or drops;
@@ -71,8 +71,9 @@ journalctl -k -b
 1. Check source/patch applicability and the final consumer kernel contract.
 2. Build the kernel, DTB, OOT modules, selected userspace/firmware and CUDA smoke
    test, including module ownership/dependency checks and the complete system.
-3. Coordinate one node, its workloads, recovery access, a retained known-good
-   boot generation, an ESP backup and sufficient free boot-partition space.
+3. Coordinate one device, any dependent workloads, recovery access, a retained
+   known-good boot generation, an ESP backup and sufficient free boot-partition
+   space.
 4. Stage with `nixos-rebuild boot` and perform a coordinated reboot. Never mix
    kernel/OOT/userspace generations using a live switch. Firmware on the tested
    boards does not provide reliable one-shot EFI rollback.

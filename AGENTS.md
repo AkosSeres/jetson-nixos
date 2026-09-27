@@ -9,8 +9,8 @@ belong in `modules/` and must be explicitly exported.
 - The current milestone is a build-ready headless Xavier CUDA configuration.
   Distinguish source checks, package builds, complete-system builds, and hardware
   validation; none is a substitute for another.
-- Keep host identities, secrets, cluster policy, and deployment wiring in
-  consuming configurations, not this repository.
+- Keep host identities, secrets, workload/orchestration policy, and deployment
+  wiring in consuming configurations, not this repository.
 - Keep documentation and APIs independent of any particular consumer repository.
 - Never reflash, repartition, deploy, reboot, or modify live hosts without an
   explicit deployment task and a confirmed recovery plan.

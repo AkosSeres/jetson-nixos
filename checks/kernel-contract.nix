@@ -25,7 +25,6 @@ let
     PHY_TEGRA194_P2U = "m";
     BLK_DEV_NVME = "m";
     USB_XHCI_TEGRA = "m";
-    USB_RTL8152 = "m";
     DRM = "y";
     DRM_MIPI_DSI = "y";
     DRM_KMS_HELPER = "y";
@@ -40,18 +39,14 @@ let
     MEMCG = "y";
     CGROUPS = "y";
     CGROUP_PIDS = "y";
-    CGROUP_BPF = "y";
     NAMESPACES = "y";
     NET_NS = "y";
     PID_NS = "y";
     USER_NS = "y";
     OVERLAY_FS = "m";
     VETH = "m";
-    VXLAN = "m";
-    BRIDGE_NETFILTER = "m";
     NF_CONNTRACK = "m";
     NF_TABLES = "m";
-    DM_CRYPT = "m";
     THERMAL_DEFAULT_GOV_STEP_WISE = "y";
     TEGRA_BPMP_THERMAL = "m";
     SENSORS_PWM_FAN = "y";

@@ -8,9 +8,12 @@ These are the implementation boundaries for the experimental headless port.
 This repository owns reusable source pins, patches, kernel/OOT packaging,
 selected userspace/firmware packaging, and an opt-in Xavier NixOS module.
 
-Consuming configurations own host configuration, workload policy, secrets,
-boot-generation selection, and deployment. Consume this project as a locked
-flake input.
+Consuming configurations own host configuration, workload/orchestration policy,
+secrets, boot-generation selection, and deployment. The reusable kernel contract
+covers Xavier hardware and generic container prerequisites only; consumers add
+orchestration-specific networking such as VXLAN/bridge netfilter, encrypted
+storage requirements, optional peripheral/NIC drivers, and workload-specific
+kernel policy. Consume this project as a locked flake input.
 Validate new candidates separately before promoting normal host outputs.
 Retain known-good boot generations for recovery after promotion; declaring an
 output does not imply that the validation gates below have passed.

@@ -13,7 +13,7 @@ with lib.kernel;
   NOVA_CORE = lib.mkForce (option no);
   DRM_PANIC_SCREEN_QR_CODE = lib.mkForce (option no);
 
-  # BPMP clocks, resets, and power domains are needed before NVMe root mounts.
+  # BPMP clocks, resets, and power domains are required by platform devices.
   TEGRA_IVC = yes;
   TEGRA_BPMP = yes;
   CLK_TEGRA_BPMP = yes;
@@ -74,7 +74,6 @@ with lib.kernel;
   PHY_TEGRA_XUSB = yes;
   USB_XHCI_PLATFORM = yes;
   USB_XHCI_TEGRA = module;
-  USB_RTL8152 = module;
 
   DMA_SHARED_BUFFER = yes;
   ARM64_PMEM = yes;
@@ -113,13 +112,12 @@ with lib.kernel;
   SENSORS_LM90 = module;
   SENSORS_INA3221 = module;
 
-  # Containers and memory accounting are first-milestone requirements.
+  # Generic container runtime support and memory accounting are
+  # first-milestone requirements.
   MEMCG = yes;
   CGROUP_HUGETLB = yes;
   OVERLAY_FS = module;
   VETH = module;
-  MACVLAN = module;
-  IPVLAN = module;
   NETFILTER_XT_MATCH_ADDRTYPE = module;
   FRAME_WARN = lib.mkForce (freeform "2048");
 }

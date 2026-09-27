@@ -106,8 +106,8 @@ device nodes were present. This does not establish that every configuration
 using the broader standalone kernel baseline has been tested.
 
 The same kernel, module, firmware and userspace outputs subsequently booted on a
-second AGX Xavier with a host-specific DT overlay. Its NVMe root, factory MAC,
-CUDA smoke test, kernel fan policy and cluster workloads also worked.
+second AGX Xavier with a board-specific DT overlay. Its NVMe root, Ethernet,
+CUDA smoke test, kernel fan policy and basic container execution also worked.
 
 The already-built `xavier-cuda-smoke` then passed independently as a video-group
 user and as root, each with a 30-second timeout. It identified `Xavier`, compute
@@ -129,12 +129,11 @@ CPU load/clocks, GPU frequency and temperatures. Vendor `nvfancontrol` and
 `nvpmodel` remain intentionally disabled.
 
 The device-node and CDI-generation services were active. An isolated
-CUDA-backed ML container ran CLIP, face and OCR inference with all six resident
-models. Its 8 GiB cgroup reflected the GPU-backed allocations and triggered
-reclaim without an OOM; the operator had observed only a few hundred MiB before
-NvMap accounting was implemented. This validates accounting for that workload,
-not every allocation path or sustained limit enforcement. TensorRT/cuDNN and
-sustained thermal/load testing remain unvalidated.
+CUDA-backed container exercised multiple resident GPU workloads under a bounded
+memory cgroup. The cgroup reflected GPU-backed allocations and triggered reclaim
+without an OOM. This validates NvMap accounting and reclaim for that bounded
+container test, not every allocation path or sustained limit enforcement.
+TensorRT/cuDNN and sustained thermal/load testing remain unvalidated.
 
 ## Validated EQOS baseline (2026-09-19)
 
@@ -150,7 +149,7 @@ owned by this repository. The validated runtime state was:
 - Tegra194 EQOS PBL TX 32 and RX 12 with PBLx8;
 - normal 1 Gbit/s full-duplex link and DHCP.
 
-The configuration remained healthy under ordinary cluster traffic through the
+The configuration remained healthy under ordinary network traffic through the
 observation window before being promoted into this reusable baseline. This is
 evidence for the exact 6.18.46 configuration above, not for later point releases,
 single-queue experiments, or the reverted per-channel IRQ experiments.
@@ -181,7 +180,8 @@ workload policy are outside this repository.
 
 Check the EFI system partition's available space; do not assume an unlimited
 number of retained kernel/initrd copies will fit. Do not garbage-collect the
-known-good generation during the experiment. In a cluster, test one node first.
+known-good generation during the experiment. When multiple devices are deployed,
+test one device first.
 
 Use a coherent boot into the new kernel and userspace. A live `switch` while
 5.10 is running is not a valid compatibility test or migration path. Installing
