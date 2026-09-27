@@ -8,9 +8,12 @@ These are the implementation boundaries for the experimental headless port.
 This repository owns reusable source pins, patches, kernel/OOT packaging,
 selected userspace/firmware packaging, and an opt-in Xavier NixOS module.
 
-Consuming configurations own host configuration, K3s policy, secrets,
-boot-generation selection, and deployment. Consume this project as a locked
-flake input.
+Consuming configurations own host configuration, workload/orchestration policy,
+secrets, boot-generation selection, and deployment. The reusable kernel contract
+covers Xavier hardware and generic container prerequisites only; consumers add
+orchestration-specific networking such as VXLAN/bridge netfilter, encrypted
+storage requirements, optional peripheral/NIC drivers, and workload-specific
+kernel policy. Consume this project as a locked flake input.
 Validate new candidates separately before promoting normal host outputs.
 Retain known-good boot generations for recovery after promotion; declaring an
 output does not imply that the validation gates below have passed.
@@ -27,10 +30,9 @@ output does not imply that the validation gates below have passed.
 - R36.4 userspace CSV/container dependencies must come from the same R36.4 scope,
   not the newer R36.5 packages also present in the firmware source input.
 - Preserve the Xavier `sm_72` target and native Jetson aarch64 CUDA package
-  selection. The nixpkgs CUDA 12.6/SM 7.2 policy override must be experimental and
-  scoped; do not modify production CUDA or claim an SM 8.7 GPU.
-- Optional llama.cpp builds should follow the host-selected CUDA package set. Toolchain/compiler
-  compatibility still needs a real CUDA build and runtime test.
+  selection. Keep the nixpkgs CUDA 12.6/SM 7.2 policy override isolated to this
+  package scope; do not alter a consumer's unrelated CUDA packages or claim an
+  SM 8.7 GPU.
 
 For CMake consumers with strict dependency isolation, keep nvcc in native build
 inputs and CUDA libraries in host build inputs. If the project calls
@@ -64,7 +66,7 @@ requires the node service; creating the nodes alone does not prove a working GPU
 - Mainline owns ordinary BPMP, built in with its clocks/resets/power domains.
   Omit OOT's hypervisor-only `tegra_bpmp` module (its name normalizes to the same
   module name as mainline's `tegra-bpmp`). Keep the independent `ivc_ext` module.
-- Keep mainline MC/EMC/interconnect support; the OOT private memory Makefile is
+- Keep mainline MC/EMC/interconnect support; the OOT memory-driver Makefile is
   not a substitute.
 - Exclude optional OOT camera, audio, SPI, VSE/SE and CEC providers in the headless
   build. Check normalized installed module names against the mainline inventory;
@@ -72,10 +74,11 @@ requires the node service; creating the nodes alone does not prove a working GPU
 - `lib.mkKernelContract` checks the generated configuration, including
   NvMap's DMA shared-buffer/PMEM/CMA dependencies, DRM helpers, storage, Ethernet,
   namespaces, cgroups and container networking. `ARM64_PMEM` selects
-  `ARCH_HAS_PMEM_API`. Use 4 KiB pages.
+  `ARCH_HAS_PMEM_API`. The validated baseline uses 4 KiB pages; larger CPU page
+  sizes are outside the current validation scope.
 - Derive configuration from actual headless requirements; do not copy the entire
   Armbian board configuration or its installers blindly.
-- Do not bring the production Realtek backport into 6.18 by default. Evaluate the
+- Do not bring the legacy Realtek backport into 6.18 by default. Evaluate the
   in-tree driver if a relevant USB adapter is actually needed.
 - Follow the local-patch migration decisions in [sources.md](sources.md).
 - The reusable baseline is pinned to the hardware-validated Linux 6.18.46.
@@ -120,7 +123,6 @@ ACPI is the right mode for this port merely because an ACPI installer boots.
 1. Build the kernel, DTB, and OOT modules; inspect configuration, module ownership,
    dependencies, and installed filenames.
 2. Build selected firmware/userspace and the SM 7.2 CUDA smoke test.
-   llama.cpp is optional follow-up work, not a gate for the initial milestone.
 3. Build a complete candidate NixOS system and retain a known-good boot generation.
 4. Coordinate one test node, recovery access, free boot-partition space, retained
    stable generations, and workloads before any boot change.

@@ -4,24 +4,28 @@
 Experimental Nix packaging for a modern Linux kernel with CUDA on NVIDIA Jetson
 AGX Xavier (T194 / GV11B, `sm_72`). This is not an NVIDIA-supported Xavier BSP.
 
-## Current status
+## Status
 
-The experimental stack has booted and passed CUDA and container workload tests
-on two AGX Xavier systems. The final EQOS tuning has a dated canary observation
-in [the validation record](docs/validation.md); the second system runs an older
-configuration. Full platform and sustained-workload validation is incomplete.
+The stack has booted on two AGX Xavier systems and has passed CUDA smoke tests,
+GPU-container execution, NvMap memory-accounting checks, NVMe-root operation,
+Ethernet validation, and basic kernel thermal/fan checks. Sustained EQOS and
+broader platform validation remain in progress; see
+[the validation record](docs/validation.md) for dated evidence and remaining
+gates.
 
-The known-good baseline uses Linux **6.18.46**, the audited OE4T R36.5
-out-of-tree sources, R36.4.4 driver userspace, and selected R35.6.5 Xavier firmware.
-The community reference used 6.18.22. Point releases remain explicitly pinned and
-must pass the full patch, build, boot, CUDA, networking, and sustained-workload
-validation gates before replacing the validated 6.18.46 pin.
+The validated baseline uses Linux **6.18.46**, the audited OE4T R36.5
+out-of-tree sources, R36.4.4 driver userspace, and selected R35.6.5 Xavier
+firmware. Kernel point releases remain explicitly pinned and must pass the full
+patch, build, boot, CUDA, networking, and sustained-workload validation gates
+before replacing that baseline.
 
-The first hardware milestone is headless CUDA, NvMap accounting, and
-GPU containers/K3s, with working networking, storage, and thermal control.
-llama.cpp is an optional later workload, not a first-milestone requirement.
-Display, camera, hardware video, TensorRT, and cuDNN are not first-milestone
-requirements; TensorRT/cuDNN remain possible follow-up work, not promised support.
+## Scope
+
+The current project scope is headless CUDA, NVIDIA container integration,
+NvMap accounting, NVMe and Ethernet, and kernel thermal/fan control.
+
+Display, camera, hardware video, TensorRT, and cuDNN are not currently
+supported or validated by this project.
 
 ## Build and check
 
@@ -50,8 +54,8 @@ nix build .#userspace .#firmware .#cuda-smoke --max-jobs 1 --cores 2
 ```
 
 The smoke test allocates 4 MiB on the GPU and verifies a small kernel result.
-Run it only after booting the matching experimental system. Compilation does
-not prove driver/runtime compatibility. See [validation](docs/validation.md)
+Run it only after booting the matching system. Compilation does not prove
+driver/runtime compatibility. See [validation](docs/validation.md)
 for the evidence and remaining gates.
 
 `sources` bundles the pinned sources and vendored patches; it runs no installers.
@@ -59,10 +63,37 @@ The firmware and userspace outputs fetch NVIDIA binaries under their own terms.
 
 ## NixOS integration
 
-Import `inputs.jetson-nixos.nixosModules.xavier` and enable
-`hardware.jetson-xavier.enable`. Set `hardware.jetson-xavier.containers.enable`
-for matching CSV-based NVIDIA Container Toolkit integration. The module is
-limited to the AGX Xavier developer kit and does not flash firmware.
+Add the flake as an input and import its Xavier module:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+
+    jetson-nixos = {
+      url = "github:AkosSeres/jetson-nixos";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { nixpkgs, jetson-nixos, ... }: {
+    nixosConfigurations.xavier = nixpkgs.lib.nixosSystem {
+      system = "aarch64-linux";
+      modules = [
+        jetson-nixos.nixosModules.xavier
+        {
+          hardware.jetson-xavier.enable = true;
+          hardware.jetson-xavier.containers.enable = true;
+        }
+      ];
+    };
+  };
+}
+```
+
+The container option is optional; enable it for matching CSV-based NVIDIA
+Container Toolkit integration. The module is limited to the AGX Xavier developer
+kit and does not flash firmware.
 
 It owns kernel/DTB/module selection, isolated CUDA 12.6 packages, R36.4.4 driver
 libraries, and selected R35.6.5 firmware. OOT owns host1x/tegra-drm; mainline owns
@@ -71,14 +102,14 @@ The final mainline DTB receives 64 KiB of padding for UEFI updates, after any
 NixOS overlays. This does not rebuild the kernel; the initial FDT boot failure
 and its correction are recorded in the archived bring-up notes.
 
-Keep hostnames, disks, users, secrets, K3s policy, llama.cpp and boot selection
+Keep hostnames, disks, users, secrets, workload policy and boot selection
 in the consuming NixOS configuration. Validate a candidate before promoting it
 to normal host outputs, retaining known-good boot generations for recovery.
 Use `nixos-rebuild boot` and a coordinated reboot for kernel/driver changes.
 
 To share the consumer's package set, set
 `inputs.jetson-nixos.inputs.nixpkgs.follows = "nixpkgs"` (or its host-specific
-input name). This also changes the private CUDA/userspace package set; validate
+input name). This also changes the isolated CUDA/userspace package set; validate
 the resulting closure. Use `lib.mkKernelContract` to check the final NixOS
 kernel after consumer configuration changes.
 
@@ -95,25 +126,6 @@ kernel after consumer configuration changes.
 - `checks/`, `tests/`: source/config checks and the CUDA smoke test.
 - [Source provenance](docs/sources.md), [integration boundaries](docs/integration.md),
   and [licensing](docs/licensing.md).
-
-## Private repository access
-
-Use Git-based HTTPS when consuming this repository with the GitHub credential
-helper:
-
-```nix
-inputs.jetson-nixos = {
-  url = "git+https://github.com/AkosSeres/jetson-nixos.git?ref=main";
-};
-```
-
-That input example alone does not enable any host feature. Each process fetching
-private inputs needs its own access; do not assume a root rebuild, CI worker, or
-remote evaluator inherits a desktop user's login. The GitHub `github:` fetcher
-has separate token configuration; the Git credential helper is for `git+https:`.
-
-Never put tokens in the flake, lock file, URLs, or Nix store. A private repository
-does not make copied store sources confidential.
 
 ## License
 

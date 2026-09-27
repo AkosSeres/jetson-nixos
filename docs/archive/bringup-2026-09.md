@@ -9,7 +9,7 @@ the dated observation window and the gates for subsequent updates.
 
 - Linux 6.18.46 is the current known-good baseline. All nine reference patches
   and the local Xavier patches apply to this exact source pin. The reusable
-  kernel contract and the consuming infra contract validate different layers:
+  kernel contract and the consuming system's contract validate different layers:
   this repository owns Xavier/CUDA/provider requirements, while consumers may
   add workload-specific kernel policy without changing the platform baseline.
 - Source revisions, recursive gitlinks and ordered patch presence checked.
@@ -66,12 +66,6 @@ the dated observation window and the gates for subsequent updates.
   checks on an AGX Xavier.
 - CUDA 12.6 smoke test compiled **natively on an AGX Xavier**, with GCC 13.4 and
   `sm_72`, producing an ARM64 ELF. It was not run against the old kernel.
-- A consuming llama.cpp build reached CMake but failed CUDA toolkit discovery.
-  Paired native CMake probes reproduced the strict-dependency/discovery-order
-  failure and passed with an explicit nvcc compiler path. The corrected full
-  build passed configuration and began CUDA compilation, then was cancelled:
-  llama.cpp is deferred as optional follow-up work. No successful full llama.cpp
-  build or execution is claimed.
 - The fan DT patch compiled separately; critical trip thresholds were checked.
 
 These build-only checks do not establish bootability, CUDA runtime compatibility,
@@ -112,16 +106,15 @@ device nodes were present. This does not establish that every configuration
 using the broader standalone kernel baseline has been tested.
 
 The same kernel, module, firmware and userspace outputs subsequently booted on a
-second AGX Xavier with a host-specific DT overlay. Its NVMe root, factory MAC,
-CUDA smoke test, kernel fan policy and cluster workloads also worked.
+second AGX Xavier with a board-specific DT overlay. Its NVMe root, Ethernet,
+CUDA smoke test, kernel fan policy and basic container execution also worked.
 
 The already-built `xavier-cuda-smoke` then passed independently as a video-group
 user and as root, each with a 30-second timeout. It identified `Xavier`, compute
 capability 7.2, allocated 4 MiB, executed an SM 7.2 kernel, synchronized, copied
 back and checked all 1,048,576 integer results, and freed the allocation. Both
-invocations exited zero. No llama.cpp build or workload was run. The inspected
-recent kernel journal showed GPU scaling initialization, with no GPU/IOMMU
-fault reported during these bounded checks.
+invocations exited zero. The inspected recent kernel journal showed GPU scaling
+initialization, with no GPU/IOMMU fault reported during these bounded checks.
 
 CPU/GPU sensor readings were approximately 40.5-43 C around the smoke tests.
 The kernel `step_wise` governor was active; the PWM fan was observed at both
@@ -136,17 +129,11 @@ CPU load/clocks, GPU frequency and temperatures. Vendor `nvfancontrol` and
 `nvpmodel` remain intentionally disabled.
 
 The device-node and CDI-generation services were active. An isolated
-CUDA-backed ML container ran CLIP, face and OCR inference with all six resident
-models. Its 8 GiB cgroup reflected the GPU-backed allocations and triggered
-reclaim without an OOM; the operator had observed only a few hundred MiB before
-NvMap accounting was implemented. This validates accounting for that workload,
-not every allocation path or sustained limit enforcement. TensorRT/cuDNN and
-sustained thermal/load testing remain unvalidated.
-
-A consuming profile also enabled the audited firewall and network-policy
-modules. Firewall startup, K3s networking, node readiness, and encrypted
-Longhorn V1 volumes recovered successfully after boot. Those workload-policy
-choices remain outside this reusable repository.
+CUDA-backed container exercised multiple resident GPU workloads under a bounded
+memory cgroup. The cgroup reflected GPU-backed allocations and triggered reclaim
+without an OOM. This validates NvMap accounting and reclaim for that bounded
+container test, not every allocation path or sustained limit enforcement.
+TensorRT/cuDNN and sustained thermal/load testing remain unvalidated.
 
 ## Validated EQOS baseline (2026-09-19)
 
@@ -160,9 +147,9 @@ owned by this repository. The validated runtime state was:
 - TX ring size 1024 descriptors;
 - TX coalescing 256 microseconds / 5 frames;
 - Tegra194 EQOS PBL TX 32 and RX 12 with PBLx8;
-- normal 1 Gbit/s full-duplex link, DHCP and K3s node readiness.
+- normal 1 Gbit/s full-duplex link and DHCP.
 
-The configuration remained healthy under ordinary cluster traffic through the
+The configuration remained healthy under ordinary network traffic through the
 observation window before being promoted into this reusable baseline. This is
 evidence for the exact 6.18.46 configuration above, not for later point releases,
 single-queue experiments, or the reverted per-channel IRQ experiments.
@@ -178,8 +165,8 @@ grep -Ei 'end0|stmmac' /proc/interrupts
 ```
 
 Expected TX values are ring `1024`, `tx-usecs 256`, `tx-frames 5`, TSO enabled,
-and a single shared `end0` GIC interrupt. Consumer-specific MAC address, K3s,
-swap, storage and network-policy choices are outside this repository.
+and a single shared `end0` GIC interrupt. Host-specific networking, storage and
+workload policy are outside this repository.
 
 ## Before each new kernel trial
 
@@ -193,7 +180,8 @@ swap, storage and network-policy choices are outside this repository.
 
 Check the EFI system partition's available space; do not assume an unlimited
 number of retained kernel/initrd copies will fit. Do not garbage-collect the
-known-good generation during the experiment. In a cluster, test one node first.
+known-good generation during the experiment. When multiple devices are deployed,
+test one device first.
 
 Use a coherent boot into the new kernel and userspace. A live `switch` while
 5.10 is running is not a valid compatibility test or migration path. Installing
@@ -202,19 +190,16 @@ a future generation or rebooting requires a separate, explicit deployment task.
 ## Checks after a coordinated trial boot
 
 - Confirm `uname -r`, board DT identity, NVMe root, ordinary BPMP/clock providers,
-  Ethernet/link/IP/SSH/Tailscale, and XUSB; inspect the boot journal for probe,
+  Ethernet/link/IP/SSH, and XUSB; inspect the boot journal for probe,
   firmware, IOMMU, and unresolved-symbol errors.
 - Confirm one provider for each required GPU module and expected GPU device
   nodes. Run `xavier-cuda-smoke` as root and as a video-group user.
 - Check CPU/GPU thermal-zone readings and fan PWM at idle and under a modest
   supervised CUDA load. Stop testing if cooling or sensor feedback is missing.
 - Confirm the matching R36.4 CSV CDI specification includes the actual Xavier
-  devices and driver-library closure. Test one GPU container before K3s workloads.
+  devices and driver-library closure. Test an isolated GPU container.
 - Verify NvMap allocations are charged to the workload's cgroup, release after
   exit, and respect a controlled memory limit. Then perform sustained tests.
 
 Do not claim TensorRT/cuDNN, display, camera, video acceleration, or production
 readiness from these headless tests.
-
-An optional later llama.cpp trial should build it explicitly, exercise a small
-known model, and verify GPU offload in its log. It is not a first-boot gate.

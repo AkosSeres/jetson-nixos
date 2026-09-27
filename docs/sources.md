@@ -145,8 +145,8 @@ Local OOT patches run after the fifteen reference patches:
 
 Linux 6.18 already has the memcg page representation required for accounted
 userspace mappings. The pinned OOT NvMap uses `__GFP_ACCOUNT`, so no accounting
-backport is applied. A CUDA-backed ML workload subsequently demonstrated cgroup
-charging and reclaim; broader limit and stress testing remains incomplete.
+backport is applied. A bounded CUDA container test subsequently demonstrated
+cgroup charging and reclaim; broader limit and stress testing remains incomplete.
 
 NvMap page coloring is disabled in this reference configuration. The active
 noncolored allocator already retries failed allocations. The colored allocator

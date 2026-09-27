@@ -6,8 +6,8 @@ final: _prev:
 let
   jetpackR36 = inputs.jetpack-r36;
 
-  # This package set is deliberately native aarch64 and private. Extending its
-  # CUDA database cannot change the caller's package set or production JP5.
+  # This package set is deliberately native aarch64 and isolated. Extending its
+  # CUDA database cannot change the caller's package set or unrelated JP5 setups.
   xavierOverlay = xavierFinal: xavierPrev: {
     _cuda = xavierPrev._cuda.extend (
       _cudaFinal: cudaPrev: {
@@ -52,7 +52,7 @@ let
     nvidia-jetpack = xavierFinal.nvidia-jetpack-r36_4_4;
 
     # Packages reached through cudaPackages.pkgs must see this release as the
-    # private default too. Leaving nixpkgs' CUDA 12.9 aliases in place makes
+    # isolated default too. Leaving nixpkgs' CUDA 12.9 aliases in place makes
     # ordinary R36 driver derivations evaluate that unsupported package set.
     cudaPackages_12 = xavierFinal.cudaPackages_12_6;
     cudaPackages = xavierFinal.cudaPackages_12;

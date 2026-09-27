@@ -2,7 +2,8 @@
 { lib }:
 with lib.kernel;
 {
-  # GV11B's downstream interfaces expect a 4 KiB page kernel.
+  # The validated Xavier CUDA/NVIDIA-driver baseline uses 4 KiB pages.
+  # Larger CPU page sizes are not currently validated by this stack.
   ARM64_4K_PAGES = lib.mkForce yes;
   ARM64_16K_PAGES = lib.mkForce no;
   ARM64_64K_PAGES = lib.mkForce no;
@@ -13,7 +14,7 @@ with lib.kernel;
   NOVA_CORE = lib.mkForce (option no);
   DRM_PANIC_SCREEN_QR_CODE = lib.mkForce (option no);
 
-  # BPMP clocks, resets, and power domains are needed before NVMe root mounts.
+  # BPMP clocks, resets, and power domains are required by platform devices.
   TEGRA_IVC = yes;
   TEGRA_BPMP = yes;
   CLK_TEGRA_BPMP = yes;
@@ -74,7 +75,6 @@ with lib.kernel;
   PHY_TEGRA_XUSB = yes;
   USB_XHCI_PLATFORM = yes;
   USB_XHCI_TEGRA = module;
-  USB_RTL8152 = module;
 
   DMA_SHARED_BUFFER = yes;
   ARM64_PMEM = yes;
@@ -113,13 +113,12 @@ with lib.kernel;
   SENSORS_LM90 = module;
   SENSORS_INA3221 = module;
 
-  # Containers and memory accounting are first-milestone requirements.
+  # Generic container runtime support and memory accounting are part of the
+  # reusable headless baseline.
   MEMCG = yes;
   CGROUP_HUGETLB = yes;
   OVERLAY_FS = module;
   VETH = module;
-  MACVLAN = module;
-  IPVLAN = module;
   NETFILTER_XT_MATCH_ADDRTYPE = module;
   FRAME_WARN = lib.mkForce (freeform "2048");
 }
