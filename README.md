@@ -95,25 +95,6 @@ kernel after consumer configuration changes.
 - [Source provenance](docs/sources.md), [integration boundaries](docs/integration.md),
   and [licensing](docs/licensing.md).
 
-## Private repository access
-
-Use Git-based HTTPS when consuming this repository with the GitHub credential
-helper:
-
-```nix
-inputs.jetson-nixos = {
-  url = "git+https://github.com/AkosSeres/jetson-nixos.git?ref=main";
-};
-```
-
-That input example alone does not enable any host feature. Each process fetching
-private inputs needs its own access; do not assume a root rebuild, CI worker, or
-remote evaluator inherits a desktop user's login. The GitHub `github:` fetcher
-has separate token configuration; the Git credential helper is for `git+https:`.
-
-Never put tokens in the flake, lock file, URLs, or Nix store. A private repository
-does not make copied store sources confidential.
-
 ## License
 
 Copyright (c) 2026 Ákos Seres. Original Nix code and documentation are
