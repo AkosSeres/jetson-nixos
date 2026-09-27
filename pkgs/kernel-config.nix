@@ -2,7 +2,8 @@
 { lib }:
 with lib.kernel;
 {
-  # GV11B's downstream interfaces expect a 4 KiB page kernel.
+  # The validated Xavier CUDA/NVIDIA-driver baseline uses 4 KiB pages.
+  # Larger CPU page sizes are not currently validated by this stack.
   ARM64_4K_PAGES = lib.mkForce yes;
   ARM64_16K_PAGES = lib.mkForce no;
   ARM64_64K_PAGES = lib.mkForce no;
@@ -112,8 +113,8 @@ with lib.kernel;
   SENSORS_LM90 = module;
   SENSORS_INA3221 = module;
 
-  # Generic container runtime support and memory accounting are
-  # first-milestone requirements.
+  # Generic container runtime support and memory accounting are part of the
+  # reusable headless baseline.
   MEMCG = yes;
   CGROUP_HUGETLB = yes;
   OVERLAY_FS = module;

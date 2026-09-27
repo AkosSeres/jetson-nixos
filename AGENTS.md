@@ -6,7 +6,7 @@ belong in `modules/` and must be explicitly exported.
 
 ## Scope and safety
 
-- The current milestone is a build-ready headless Xavier CUDA configuration.
+- The project targets a build-ready headless Xavier CUDA configuration.
   Distinguish source checks, package builds, complete-system builds, and hardware
   validation; none is a substitute for another.
 - Keep host identities, secrets, workload/orchestration policy, and deployment
@@ -14,7 +14,7 @@ belong in `modules/` and must be explicitly exported.
 - Keep documentation and APIs independent of any particular consumer repository.
 - Never reflash, repartition, deploy, reboot, or modify live hosts without an
   explicit deployment task and a confirmed recovery plan.
-- Keep production JetPack 5 configurations independent from this experimental
+- Keep existing JetPack 5 configurations independent from this experimental
   port. Never fake an Orin identity to make a Xavier configuration evaluate.
 
 ## Sources and licensing

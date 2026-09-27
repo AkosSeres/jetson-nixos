@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: GPL-2.0-only -->
-# Current baseline and validation
+# Baseline and validation records
 
 ## Baseline
 
@@ -15,26 +15,26 @@ variants and Linux 6.18.51/6.18.52 experiments are outside this baseline.
 
 ## Recorded hardware evidence
 
-The headless stack built and booted on two AGX Xavier systems using a consuming
-configuration's trimmed kernel. NVMe root, Ethernet, GPU modules/device nodes,
-the padded P2972 DTB, host CUDA and basic kernel fan control worked. A CUDA-backed
-ML container exercised NvMap cgroup charging and reclaim. These observations
-do not establish a successful build or hardware test of the broader standalone
-kernel configuration.
+The headless stack built and booted on two AGX Xavier systems using consuming
+configurations with trimmed kernels. NVMe root, Ethernet, GPU modules/device
+nodes, the padded P2972 DTB, host CUDA and basic kernel fan control worked. A
+bounded CUDA container test exercised NvMap cgroup charging and reclaim. These
+observations do not establish a successful build or hardware test of every
+possible standalone kernel configuration.
 
-The current EQOS baseline was observed on one canary from **2026-09-19
-00:34 UTC through 2026-09-20 11:50 UTC**, approximately 35 hours under ordinary
-network traffic. Read-only checks at the end of that window found:
+### 2026-09-19 EQOS observation
+
+The four-queue EQOS baseline was observed from **2026-09-19 00:34 UTC through
+2026-09-20 11:50 UTC**, approximately 35 hours under ordinary network traffic.
+Read-only checks at the end of that window found:
 
 - the expected queues, shared interrupt, TX ring/coalescing and enabled TSO;
 - no failed systemd units, interface RX/TX errors or drops;
-- no TX-timeout messages in the current boot journal;
+- no TX-timeout messages in that boot journal;
 - a boot-time EQOS memory-controller address-decode warning, still unclassified.
 
-The other system remained on an older configuration with TSO disabled. Its
-longer uptime is not evidence for the current EQOS baseline; historical TX
-timeouts and ongoing page-pool shutdown warnings belong to that older image.
-Host identities and deployment records belong in the consuming repository.
+This record is evidence for that exact observation window and configuration,
+not a statement about the current state of any deployed system.
 
 Sustained traffic, thermal stress, broader NvMap limit enforcement and
 TensorRT/cuDNN remain unvalidated. Source/configuration checks, compilation,

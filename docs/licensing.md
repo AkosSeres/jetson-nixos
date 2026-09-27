@@ -35,7 +35,7 @@ The local Linux, host1x/BPMP, and nvgpu patches are GPL-2.0-only.
 - Keep CUDA, firmware, BSP archives, and extracted proprietary binaries out of
   Git. Verify their actual download and redistribution terms before publishing
   packages, images, containers, or binary-cache artifacts.
-- A private repository does not eliminate obligations attached to distribution.
+- Repository visibility does not change obligations attached to distribution.
 
 This is a record of licensing boundaries, not a complete redistribution audit.
 No blanket permission to publish the eventual combined image is claimed.
