@@ -4,6 +4,8 @@
 Experimental Nix packaging for a modern Linux kernel with CUDA on NVIDIA Jetson
 AGX Xavier (T194 / GV11B, `sm_72`). This is not an NVIDIA-supported Xavier BSP.
 
+__Disclaimer: this work is almost fully AI written__
+
 ## Status
 
 The stack has booted on two AGX Xavier systems and has passed CUDA smoke tests,
