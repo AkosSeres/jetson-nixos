@@ -133,9 +133,13 @@ Local Linux patches run after the nine reference patches:
   matching the validated nvethernet DMA policy.
 - `patches/linux/0006-*` carries the March 2026 netdev patch that frees stmmac
   IRQs before setting `STMMAC_DOWN` during watchdog reset and avoids freeing
-  them a second time in `__stmmac_release()`. It is an experimental recovery
-  fix for the observed TX-timeout -> shared-IRQ storm -> CPU soft-lock sequence,
-  not yet part of the validated baseline.
+  them a second time in `__stmmac_release()`. Hardware validation across three
+  genuine watchdog recoveries on two AGX Xavier systems showed link recovery
+  without the prior interrupt-storm / RCU / soft-lockup cascade.
+- `patches/linux/0007-*` sets Tegra194 EQOS RX/TX FIFO depth to 36 KiB total.
+  With the validated four-queue topology, stmmac divides this into 9 KiB per
+  queue, matching NVIDIA's nvethernet v5.0 FIFO policy instead of mainline's
+  hardware-reported 64 KiB total / 16 KiB-per-queue layout.
 
 Local OOT patches run after the fifteen reference patches:
 
