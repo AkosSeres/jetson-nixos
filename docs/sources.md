@@ -131,6 +131,11 @@ Local Linux patches run after the nine reference patches:
   the validated NVIDIA nvethernet policy while retaining the shared-IRQ topology.
 - `patches/linux/0005-*` sets Tegra194 EQOS PBL to TX 32 and RX 12 with PBLx8,
   matching the validated nvethernet DMA policy.
+- `patches/linux/0006-*` carries the March 2026 netdev patch that frees stmmac
+  IRQs before setting `STMMAC_DOWN` during watchdog reset and avoids freeing
+  them a second time in `__stmmac_release()`. It is an experimental recovery
+  fix for the observed TX-timeout -> shared-IRQ storm -> CPU soft-lock sequence,
+  not yet part of the validated baseline.
 
 Local OOT patches run after the fifteen reference patches:
 

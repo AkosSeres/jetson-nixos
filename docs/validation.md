@@ -13,6 +13,11 @@ hardware TSO/GSO/GRO enabled, TX ring 1024, TX coalescing 256 microseconds /
 5 frames, and TX/RX PBL 32/12 with PBLx8. Per-channel interrupts, single-queue
 variants and Linux 6.18.51/6.18.52 experiments are outside this baseline.
 
+The current feature candidate keeps that topology and adds only the March 2026
+stmmac reset IRQ-window patch. Its immediate validation target is recovery after
+a reproducible TX watchdog: IRQ activity must not storm and the IRQ CPU must not
+enter an RCU/soft-lockup. Preventing the original TX timeout is a separate gate.
+
 ## Recorded hardware evidence
 
 The headless stack built and booted on two AGX Xavier systems using consuming
