@@ -1,8 +1,9 @@
 <!-- SPDX-License-Identifier: GPL-2.0-only -->
 # jetson-nixos
 
-Experimental Nix packaging for a modern Linux kernel with CUDA on NVIDIA Jetson
-AGX Xavier (T194 / GV11B, `sm_72`). This is not an NVIDIA-supported Xavier BSP.
+Experimental Nix packaging for a mainline Linux kernel with CUDA on NVIDIA
+Jetson AGX Xavier (T194 / GV11B, `sm_72`). This is not an NVIDIA-supported
+Xavier BSP.
 
 __Disclaimer: this work is almost fully AI written__
 
@@ -10,10 +11,14 @@ __Disclaimer: this work is almost fully AI written__
 
 The stack has booted on two AGX Xavier systems and has passed CUDA smoke tests,
 GPU-container execution, NvMap memory-accounting checks, NVMe-root operation,
-Ethernet validation, and basic kernel thermal/fan checks. Sustained EQOS and
-broader platform validation remain in progress; see
-[the validation record](docs/validation.md) for dated evidence and remaining
-gates.
+Ethernet validation, and basic kernel thermal/fan checks.
+
+The validated EQOS baseline uses four RX/TX queues, a shared MAC interrupt,
+NVIDIA-matched DMA and FIFO policy, and the stmmac reset IRQ-window fix. The
+recovery path has completed multiple real TX-watchdog resets without the prior
+interrupt/RCU/soft-lockup cascade. The underlying rare TX timeout and a separate
+RX page-pool teardown leak remain unresolved; see
+[the validation record](docs/validation.md) for details.
 
 The validated baseline uses Linux **6.18.46**, the audited OE4T R36.5
 out-of-tree sources, R36.4.4 driver userspace, and selected R35.6.5 Xavier

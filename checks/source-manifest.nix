@@ -30,6 +30,7 @@ let
     ../patches/linux/0004-net-stmmac-tegra194-match-nvethernet-tx-defaults.patch
     ../patches/linux/0005-arm64-dts-tegra194-match-nvethernet-pbl.patch
     ../patches/linux/0006-net-stmmac-close-reset-irq-window.patch
+    ../patches/linux/0007-arm64-dts-tegra194-match-nvethernet-fifo-depths.patch
   ];
   patches = patchSeries.linux ++ patchSeries.nvidia-oot;
   manifest = pkgs.writeText "jetson-nixos-source-manifest.json" (
@@ -46,7 +47,7 @@ let
 in
 assert builtins.length patchSeries.linux == 9;
 assert builtins.length patchSeries.nvidia-oot == 15;
-assert builtins.length localLinuxPatches == 6;
+assert builtins.length localLinuxPatches == 7;
 assert builtins.length patches == builtins.length (lib.unique patches);
 assert lib.all (name: builtins.match "[0-9a-f]{40}" inputs.${name}.rev != null) sourceNames;
 pkgs.runCommand "jetson-nixos-source-manifest" { } ''

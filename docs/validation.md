@@ -10,13 +10,13 @@ Consumers may trim the kernel further and add their own workload contract.
 
 The EQOS configuration is four RX/TX queues, one shared MAC interrupt,
 hardware TSO/GSO/GRO enabled, TX ring 1024, TX coalescing 256 microseconds /
-5 frames, and TX/RX PBL 32/12 with PBLx8. Per-channel interrupts, single-queue
+5 frames, TX/RX PBL 32/12 with PBLx8, and 36 KiB total RX/TX FIFO depth.
+With four active queues, stmmac divides the FIFO into 9 KiB per queue, matching
+NVIDIA's Tegra194 nvethernet v5.0 policy. Per-channel interrupts, single-queue
 variants and Linux 6.18.51/6.18.52 experiments are outside this baseline.
 
-The current feature candidate keeps that topology and adds only the March 2026
-stmmac reset IRQ-window patch. Its immediate validation target is recovery after
-a reproducible TX watchdog: IRQ activity must not storm and the IRQ CPU must not
-enter an RCU/soft-lockup. Preventing the original TX timeout is a separate gate.
+The baseline also carries the stmmac reset IRQ-window fix. It improves recovery
+after a rare TX watchdog but does not claim to prevent the underlying timeout.
 
 ## Recorded hardware evidence
 
@@ -27,10 +27,27 @@ bounded CUDA container test exercised NvMap cgroup charging and reclaim. These
 observations do not establish a successful build or hardware test of every
 possible standalone kernel configuration.
 
-### 2026-09-19 EQOS observation
+### Watchdog recovery validation
 
-The four-queue EQOS baseline was observed from **2026-09-19 00:34 UTC through
-2026-09-20 11:50 UTC**, approximately 35 hours under ordinary network traffic.
+The reset IRQ-window fix has completed three genuine TX-watchdog recoveries
+across two AGX Xavier systems. In all three cases the adapter reset completed,
+the link returned within a few seconds, and no interrupt storm, RCU stall,
+soft/hard lockup or reboot followed. A separate RX page-pool teardown leak can
+remain after recovery and is not fixed by the IRQ-window patch.
+
+### FIFO sizing validation
+
+The 36 KiB RX/TX FIFO policy was first tested as an A/B hardware canary against
+the previous 64 KiB-total layout. The vendor-matched 9 KiB-per-queue system
+remained free of TX watchdogs past the comparison system's first-failure window,
+while the comparison system produced repeated watchdog/reset events. This is
+strong hardware evidence for the vendor FIFO layout, but not proof that FIFO
+sizing is the sole possible cause of every TX timeout.
+
+### 2026-09-19 pre-FIFO EQOS observation
+
+The earlier four-queue EQOS baseline was observed from **2026-09-19 00:34 UTC
+through 2026-09-20 11:50 UTC**, approximately 35 hours under ordinary network traffic.
 Read-only checks at the end of that window found:
 
 - the expected queues, shared interrupt, TX ring/coalescing and enabled TSO;

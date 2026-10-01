@@ -1,0 +1,33 @@
+SPDX-FileCopyrightText: 2026 Akos Seres
+SPDX-License-Identifier: GPL-2.0-only
+
+Subject: [PATCH] arm64: dts: tegra194: match nvethernet EQOS FIFO depths
+
+NVIDIA's Tegra194 nvethernet v5.0 policy uses 9 KiB RX FIFO per
+active queue. Its TX policy derives queue depth from a 36 KiB total
+FIFO, which also yields 9 KiB per queue with the four active TX
+queues used by this configuration.
+
+stmmac otherwise uses the hardware-reported 64 KiB RX/TX FIFO sizes
+and divides them across the configured queues, producing 16 KiB per
+queue. Override the total FIFO depths to 36 KiB so the four-queue
+mainline configuration matches NVIDIA's 9 KiB-per-queue policy in
+both directions.
+
+This only changes Tegra194 EQOS device-tree policy; other stmmac
+platforms are unaffected.
+
+Target: Linux 6.18.46 after the pinned reference and local PBL patches.
+Upstream-Status: Inappropriate [local hardware-validated tuning policy]
+
+diff --git a/arch/arm64/boot/dts/nvidia/tegra194.dtsi b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+--- a/arch/arm64/boot/dts/nvidia/tegra194.dtsi
++++ b/arch/arm64/boot/dts/nvidia/tegra194.dtsi
+@@ -175,6 +175,8 @@ ethernet@2490000 {
+ 			/* Match NVIDIA nvethernet's Tegra194 EQOS PBL programming. */
+ 			snps,txpbl = <32>;
+ 			snps,rxpbl = <12>;
++			tx-fifo-depth = <36864>;
++			rx-fifo-depth = <36864>;
+ 			snps,mtl-rx-config = <&eqos_mtl_rx_setup>;
+ 			snps,mtl-tx-config = <&eqos_mtl_tx_setup>;
