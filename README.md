@@ -9,9 +9,9 @@ __Disclaimer: this work is almost fully AI written__
 
 ## Status
 
-The stack has booted on two AGX Xavier systems and has passed CUDA smoke tests,
-GPU-container execution, NvMap memory-accounting checks, NVMe-root operation,
-Ethernet validation, and basic kernel thermal/fan checks.
+The Linux 6.18.46 stack has booted on two AGX Xavier systems and has passed CUDA
+smoke tests, GPU-container execution, NvMap memory-accounting checks, NVMe-root
+operation, Ethernet validation, and basic kernel thermal/fan checks.
 
 The validated EQOS baseline uses four RX/TX queues, a shared MAC interrupt,
 NVIDIA-matched DMA and FIFO policy, and the stmmac reset IRQ-window fix. The
@@ -20,11 +20,29 @@ interrupt/RCU/soft-lockup cascade. The underlying rare TX timeout and a separate
 RX page-pool teardown leak remain unresolved; see
 [the validation record](docs/validation.md) for details.
 
-The validated baseline uses Linux **6.18.46**, the audited OE4T R36.5
-out-of-tree sources, R36.4.4 driver userspace, and selected R35.6.5 Xavier
-firmware. Kernel point releases remain explicitly pinned and must pass the full
-patch, build, boot, CUDA, networking, and sustained-workload validation gates
-before replacing that baseline.
+The selected Linux **6.18.57** stack passed bounded AGX Xavier hardware checks
+on **2026-10-16**. The kernel update with R36.4.4/CUDA 12.6 and the subsequent
+R36.5.2 userspace update (JetPack 6.2.3, driver 540.5.0) each passed separate
+boot, custom CUDA kernel and container checks. It retains the audited OE4T OOT sources,
+selected R35.6.5 firmware, upstream stmmac TSO fixes and the carried RX recovery
+patch. A follow-up on **2026-10-18** found the fully updated board still on the
+same boot after approximately **68 hours** and 131 GB of ordinary Ethernet
+traffic, with no recorded TX watchdogs, link drops, GPU faults or memory
+exhaustion. Host CUDA and cuBLAS checks passed again. This is evidence for
+that observation window; the rare timeout and RX teardown leak remain open.
+See [the follow-up record](docs/validation.md#2026-10-18-follow-up-observation).
+
+The following CUDA **12.9** trial passed host and CDI-container SGEMM checks
+with PTX JIT disabled, using Jetson nvcc **12.9.86**, cudart **12.9.79**,
+compatibility UMD **12.9.40580548**, and the separately pinned Jetson
+cuBLAS/cuBLASLt **12.2.5.6** component with matching headers. All 1024 results
+passed as an ordinary user, root and in the container. A bounded concurrent
+allocation/release preflight also passed. Other math libraries and prolonged
+workloads require their own validation; see [validation](docs/validation.md).
+
+The eleven NVIDIA NvMap/nvgpu backports also passed a separate reboot, loaded
+module identity checks, host/container SGEMM and bounded allocation/release
+checks. These results cover the recorded trial, not a complete security audit.
 
 ## Scope
 
@@ -61,9 +79,19 @@ nix build .#userspace .#firmware .#cuda-smoke --max-jobs 1 --cores 2
 ```
 
 The smoke test allocates 4 MiB on the GPU and verifies a small kernel result.
-Run it only after booting the matching system. Compilation does not prove
-driver/runtime compatibility. See [validation](docs/validation.md)
-for the evidence and remaining gates.
+It does not exercise cuBLAS; require a separate bounded SGEMM check for the
+selected library closure. Run tests only with the matching driver/runtime.
+Compilation does not prove runtime or math-library compatibility. Build the
+separate cuBLAS test and run it with a deadline and PTX JIT disabled:
+
+```sh
+nix build .#cuda-cublas-smoke --max-jobs 1 --cores 2
+CUDA_DISABLE_PTX_JIT=1 timeout --kill-after=5s 30s result/bin/xavier-cuda-cublas-smoke
+```
+
+It verifies a native `sm_72` fill and all 1024 results of a 32x32 SGEMM, and
+prints mapped library paths and CUDA API versions. See
+[validation](docs/validation.md) for the evidence and remaining gates.
 
 `sources` bundles the pinned sources and vendored patches; it runs no installers.
 The firmware and userspace outputs fetch NVIDIA binaries under their own terms.
@@ -102,9 +130,11 @@ The container option is optional; enable it for matching CSV-based NVIDIA
 Container Toolkit integration. The module is limited to the AGX Xavier developer
 kit and does not flash firmware.
 
-It owns kernel/DTB/module selection, isolated CUDA 12.6 packages, R36.4.4 driver
-libraries, and selected R35.6.5 firmware. OOT owns host1x/tegra-drm; mainline owns
-BPMP and MC/EMC. A kernel-managed fan curve replaces vendor nvfancontrol.
+It owns kernel/DTB/module selection, isolated CUDA 12.9 packages, R36.5.2 driver
+libraries, and selected R35.6.5 firmware. The BSP packaging metadata remains
+CUDA 12.6.10, independently of the application toolkit and compatibility UMD;
+see [integration boundaries](docs/integration.md). OOT owns host1x/tegra-drm;
+mainline owns BPMP and MC/EMC. A kernel-managed fan curve replaces vendor nvfancontrol.
 The final mainline DTB receives 64 KiB of padding for UEFI updates, after any
 NixOS overlays. This does not rebuild the kernel; the initial FDT boot failure
 and its correction are recorded in the archived bring-up notes.

@@ -4,6 +4,12 @@
 let
   linuxRoot = "patches/armbian/linux";
   ootRoot = "patches/armbian/nvidia-oot";
+  securityManifest = builtins.fromJSON (builtins.readFile ../patches/nvidia-r36.5.2/manifest.json);
+  securityPatchesFor =
+    component:
+    map (entry: entry.patch) (
+      builtins.filter (entry: entry.component == component) securityManifest.patches
+    );
 in
 {
   linux = map (name: "${linuxRoot}/${name}") [
@@ -36,4 +42,8 @@ in
     "0019-nvdisplay-conftest-require-crypto_akcipher_verify-for-lkca.patch"
     "0020-tegra-fbdev-adapt-to-preallocated-fb_info.patch"
   ];
+
+  # Original upstream paths are retained; apply within the named submodule.
+  nvmap-security = securityPatchesFor "nvmap";
+  nvgpu-security = securityPatchesFor "nvgpu";
 }

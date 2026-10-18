@@ -28,7 +28,7 @@ let
   ];
 in
 {
-  scopeName = "jetpack-r36_4_4";
+  scopeName = "jetpack-r36_5_2";
   inherit (r36Scope)
     cudaDriverMajorMinorVersion
     cudaMajorMinorVersion

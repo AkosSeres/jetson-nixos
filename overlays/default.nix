@@ -27,5 +27,9 @@ userspaceOverlay
       inherit (final) lib;
       cudaPackages = userspaceOverlay.jetson-xavier.cudaPackages;
     };
+    cuda-cublas-smoke = import ../pkgs/cuda-cublas-smoke.nix {
+      inherit (final) lib;
+      cudaPackages = userspaceOverlay.jetson-xavier.cudaPackages;
+    };
   };
 }

@@ -1,0 +1,20 @@
+NVIDIA Jetson Linux R36.5.2 source backports
+
+The email patches in nvmap/ and nvgpu/ were downloaded unchanged from the
+exact NVIDIA GitLab commit URLs recorded in manifest.json. Original author,
+date, commit message, copyright, review and sign-off metadata are preserved.
+SHA-256 values identify the downloaded patch bytes, not an entire source tree.
+
+NvMap patches target NVIDIA linux-nv-oot, based here on OE4T gitlink
+ccf7646c57462776fe1093af6643c54653f59861. Their target files identify
+GPL-2.0-only licensing. COPYING.GPL-2.0-only contains the GNU GPL version 2
+license text, copied from this repository's patches/armbian/LICENSE.
+
+nvgpu patches target NVIDIA linux-nvgpu, based here on OE4T gitlink
+d530a48d64f9ad3020d9f3307f53e8dde8e3fba1. The affected target files carry
+the NVIDIA MIT permission text reproduced in COPYING.MIT. Per-file copyright
+notices, including the years changed by these patches, remain authoritative.
+
+Apply each complete series in manifest order after the existing superproject
+patches, from its own source subdirectory with -p1. No proprietary binaries,
+firmware, NVIDIA installers or wholesale source-tree updates are included.

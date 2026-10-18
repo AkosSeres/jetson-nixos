@@ -32,9 +32,32 @@ kernel.stdenv.mkDerivation {
   patches = map (path: ../. + "/${path}") patchSeries.nvidia-oot ++ [
     ../patches/nvidia-oot/0001-firmware-tegra-make-hv-bpmp-optional.patch
     ../patches/nvidia-oot/0002-headless-suppress-optional-providers.patch
+    ../patches/nvidia-oot/0003-watchdog-tegra-adapt-to-context-syscore.patch
     ../patches/nvgpu/0001-dma-clean-up-failed-system-memory-allocations.patch
   ];
   patchFlags = [ "-p1" ];
+
+  # Preserve the R36.5.2 email patches byte-for-byte, including author headers
+  # and original paths. Apply them after the existing superproject patches,
+  # within their own source trees. Keep each upstream series in manifest order.
+  postPatch =
+    lib.concatMapStringsSep "\n"
+      (
+        series:
+        lib.concatMapStringsSep "\n" (path: ''
+          patch --batch --forward --fuzz=0 -p1 -d ${lib.escapeShellArg series.directory} < ${../. + "/${path}"}
+        '') series.patches
+      )
+      [
+        {
+          directory = "nvidia-oot";
+          patches = patchSeries.nvmap-security;
+        }
+        {
+          directory = "nvgpu";
+          patches = patchSeries.nvgpu-security;
+        }
+      ];
 
   nativeBuildInputs = kernel.moduleBuildDependencies;
   strictDeps = true;

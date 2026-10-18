@@ -50,6 +50,9 @@ v4 uses STMMAC_RX_FILL_BATCH as the threshold rather than "any dirty
 descriptor at all", matching the logic already used by the zero-copy
 refill path, and avoids burning NAPI cycles on a single stale entry.
 
+Rebased onto Linux 6.18.57: refresh the declaration context and hunk
+positions without changing the recovery logic.
+
 Fixes: 47dd7a540b8a ("net: add support for STMicroelectronics Ethernet controllers.")
 Upstream-Status: Pending
 Signed-off-by: Sam Edwards <CFSworks@gmail.com>
@@ -61,15 +64,16 @@ Signed-off-by: Mateusz Krawczuk <mateusz.krawczuk@cybrixsystems.com>
 diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
 --- a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
 +++ b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
-@@ -5402,6 +5402,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
+@@ -5514,7 +5514,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
  	unsigned int desc_size;
  	struct sk_buff *skb = NULL;
  	struct stmmac_xdp_buff ctx;
 +	int budget = limit;
+ 	bool fcs_stripped = false;
  	int xdp_status = 0;
  	int bufsz;
 
-@@ -5669,6 +5670,10 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
+@@ -5793,6 +5794,10 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
  	priv->xstats.rx_dropped += rx_dropped;
  	priv->xstats.rx_errors += rx_errors;
 

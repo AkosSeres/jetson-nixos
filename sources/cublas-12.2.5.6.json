@@ -1,0 +1,36 @@
+{
+  "name": "CUDA cuBLAS",
+  "license": "CUDA Toolkit",
+  "license_path": "libcublas/LICENSE.txt",
+  "version": "12.2.5.6",
+  "linux-x86_64": {
+    "relative_path": "libcublas/linux-x86_64/libcublas-linux-x86_64-12.2.5.6-archive.tar.xz",
+    "sha256": "56ccf7ffbe7ea204fbb0c5c4c55829ef3fb81b2e811f8073fcd0bbef438b262e",
+    "md5": "dfd9fc6f65d0d2200cbbf0c28d5c7067",
+    "size": "505014804"
+  },
+  "linux-ppc64le": {
+    "relative_path": "libcublas/linux-ppc64le/libcublas-linux-ppc64le-12.2.5.6-archive.tar.xz",
+    "sha256": "0883ddfb1460cb69219a80fffe3e1ef02d59caf08ff60fb86453cdabdf5c7318",
+    "md5": "53db5e36efe8dbf45135d8835cf6ca0a",
+    "size": "400304640"
+  },
+  "linux-sbsa": {
+    "relative_path": "libcublas/linux-sbsa/libcublas-linux-sbsa-12.2.5.6-archive.tar.xz",
+    "sha256": "be6885ddccdf7b5f6efaf4272aef7cffbb5502258e9991cd93c5bc110a38e364",
+    "md5": "bde4d96c012a7cc232e1b5709e0d076c",
+    "size": "496898260"
+  },
+  "windows-x86_64": {
+    "relative_path": "libcublas/windows-x86_64/libcublas-windows-x86_64-12.2.5.6-archive.zip",
+    "sha256": "205f20a1e91a9502ad4b9bca2e66effa76ef14ef5378e1fc5b6e2a223158ac5b",
+    "md5": "23535cff27e5ab460026dd2164123935",
+    "size": "443774878"
+  },
+  "linux-aarch64": {
+    "relative_path": "libcublas/linux-aarch64/libcublas-linux-aarch64-12.2.5.6-archive.tar.xz",
+    "sha256": "db001ba7f3e33568846b1c37ccdf54dcea66396975e43720471d799d08e1eb5f",
+    "md5": "7f68aaa55b34724cc64458e85b6625b5",
+    "size": "453455004"
+  }
+}

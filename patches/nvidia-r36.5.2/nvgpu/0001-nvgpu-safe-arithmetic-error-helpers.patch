@@ -1,0 +1,174 @@
+From e24b540b4cd20a610fb24f606371c1e3a130374d Mon Sep 17 00:00:00 2001
+From: srajum <srajum@nvidia.com>
+Date: Thu, 13 Feb 2025 18:41:58 +0530
+Subject: [PATCH] gpu: nvgpu: adding new safe arithmetic functions for return
+ error
+
+- Existing safe arithmetic functions will crash gpu if overflow happend
+  which is not correct way to handle overflows, adding new safe
+  arithmetic functions those will return error code to caller function.
+
+JIRA NVGPU-11866
+Bug 6355239
+
+Change-Id: Icb32491704277eabafa7f74af3e567a32c4e8bba
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3301919
+(cherry picked from commit 411ea693ae5e63dfa72a28a3f91148eb0c22ccf7)
+Signed-off-by: srajum <srajum@nvidia.com>
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3653110
+Tested-by: Sagar Kamble <skamble@nvidia.com>
+Reviewed-by: Sagar Kamble <skamble@nvidia.com>
+GVS: buildbot_gerritrpt <buildbot_gerritrpt@nvidia.com>
+Reviewed-by: Ankur Kishore <ankkishore@nvidia.com>
+---
+ .../gpu/nvgpu/include/nvgpu/static_analysis.h | 99 +++++++++++++++++--
+ 1 file changed, 90 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h b/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
+index 4dcff530d..e1fd1db8b 100644
+--- a/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
++++ b/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (c) 2019-2026, NVIDIA CORPORATION.  All rights reserved.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a
+  * copy of this software and associated documentation files (the "Software"),
+@@ -48,6 +48,83 @@ static inline u64 nvgpu_safe_cast_s32_to_u64(s32 si_a);
+ static inline u64 nvgpu_safe_cast_s64_to_u64(s64 l_a);
+ static inline s64 nvgpu_safe_cast_u64_to_s64(u64 ul_a);
+ 
++/**
++ * @brief Add two u32 values and check for overflow.
++ *
++ * @param ui_a [in]	Addend value for adding.
++ * @param ui_b [in]	Addend value for adding.
++ * @param result [out]  Pointer to output value.
++ *
++ * Adds the two u32 (unsigned 32 bit) values unless the result will overflow a
++ * u32. Overflow will happen if the difference between UNIT_MAX (the max number
++ * representable with 32 bits) and one addend is less than the other addend.
++ * Return false in such a case else return true with sum.
++ *
++ * @return true If no overflow or false if overflow. .
++ */
++static inline bool nvgpu_safe_add_u32_return(u32 ui_a, u32 ui_b, u32 *result)
++{
++	if ((UINT_MAX - ui_a) < ui_b) {
++		return false;
++	} else {
++		*result = ui_a + ui_b;
++		return true;
++	}
++}
++
++/**
++ * @brief Multiply two u32 values and check for overflow.
++ *
++ * @param ui_a [in]	Value of multiplicand.
++ * @param ui_b [in]	Value of multiplier.
++ * @param result [out]  Pointer to output value.
++ *
++ * Multiplies \a ui_a and \a ui_b unless the result will overflow a u32. If the
++ * result would overflow, then return false. To determine whether the multiplication
++ * will cause an overflow, following steps are performed.
++ * - If \a ui_a or \a ui_b is 0 return 0 as multiplication result.
++ * - Else if \a ui_a is greater than UINT_MAX division by \a ui_b,
++ *   multiplication will overflow so will return false.
++ * - Else return true with storing result of multiplication.
++ *
++ * @return true If no overflow or false if overflow. .
++ */
++static inline bool nvgpu_safe_mult_u32_return(u32 ui_a, u32 ui_b, u32 *result)
++{
++	if ((ui_a == 0U) || (ui_b == 0U)) {
++		*result = 0U;
++		return true;
++	} else if (ui_a > (UINT_MAX / ui_b)) {
++		return false;
++	} else {
++		*result = ui_a * ui_b;
++		return true;
++	}
++}
++
++/**
++ * @brief Subtract two u32 values and check for underflow.
++ *
++ * @param ui_a [in]	Value of minuend.
++ * @param ui_b [in]	Value of subtrahend.
++ * @param result [out]  Pointer to output value.
++ *
++ * Subtracts \a ui_b from \a ui_a unless the result will underflow a u32
++ * (unsigned 32 bit). If \a ui_a is less than \a ui_b then result would
++ * underflow and return false.
++ *
++ * @return true If no overflow or false if overflow. .
++ */
++static inline bool nvgpu_safe_sub_u32_return(u32 ui_a, u32 ui_b, u32 *result)
++{
++	if (ui_a < ui_b) {
++		return false;
++	} else {
++		*result = ui_a - ui_b;
++		return true;
++	}
++}
++
+ /**
+  * @brief Add two u32 values and check for overflow.
+  *
+@@ -63,11 +140,13 @@ static inline s64 nvgpu_safe_cast_u64_to_s64(u64 ul_a);
+  */
+ static inline u32 nvgpu_safe_add_u32(u32 ui_a, u32 ui_b)
+ {
+-	if ((UINT_MAX - ui_a) < ui_b) {
++	u32 result = 0U;
++
++	if (nvgpu_safe_add_u32_return(ui_a, ui_b, &result) == false) {
+ 		BUG();
+ 		return 0U;
+ 	} else {
+-		return ui_a + ui_b;
++		return result;
+ 	}
+ }
+ 
+@@ -269,11 +348,13 @@ static inline u8 nvgpu_safe_sub_u8(u8 uc_a, u8 uc_b)
+  */
+ static inline u32 nvgpu_safe_sub_u32(u32 ui_a, u32 ui_b)
+ {
+-	if (ui_a < ui_b) {
++	u32 result = 0U;
++
++	if (nvgpu_safe_sub_u32_return(ui_a, ui_b, &result) == false) {
+ 		BUG();
+ 		return 0U;
+ 	} else {
+-		return ui_a - ui_b;
++		return result;
+ 	}
+ }
+ 
+@@ -383,13 +464,13 @@ static inline s64 nvgpu_safe_sub_s64(s64 si_a, s64 si_b)
+  */
+ static inline u32 nvgpu_safe_mult_u32(u32 ui_a, u32 ui_b)
+ {
+-	if ((ui_a == 0U) || (ui_b == 0U)) {
+-		return 0U;
+-	} else if (ui_a > (UINT_MAX / ui_b)) {
++	u32 result = 0U;
++
++	if (nvgpu_safe_mult_u32_return(ui_a, ui_b, &result) == false) {
+ 		BUG();
+ 		return 0U;
+ 	} else {
+-		return ui_a * ui_b;
++		return result;
+ 	}
+ }
+ 
+-- 
+GitLab
+

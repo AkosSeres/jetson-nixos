@@ -23,6 +23,10 @@ in
         name = "armbian-patches";
         path = ../patches/armbian;
       }
+      {
+        name = "nvidia-r36.5.2-patches";
+        path = ../patches/nvidia-r36.5.2;
+      }
     ]
     ++
       map

@@ -23,16 +23,35 @@ output does not imply that the validation gates below have passed.
 - Linux 6.18 and its patched mainline T194 DTB are independent of JetPack's kernel.
 - Build the OE4T R36.5 OOT superproject against that exact kernel's configuration,
   headers, compiler, and symbol versions.
-- Reuse the pinned R36.4 JetPack packaging through a uniquely named package scope,
+- Reuse the pinned R36.5.2 JetPack packaging through a uniquely named package scope,
   not its full default overlay or NixOS module.
 - Select R35.6.5 GV11B and XUSB firmware explicitly. Do not import a whole legacy
   module or allow newer Orin firmware to win by package order.
-- R36.4 userspace CSV/container dependencies must come from the same R36.4 scope,
-  not the newer R36.5 packages also present in the firmware source input.
-- Preserve the Xavier `sm_72` target and native Jetson aarch64 CUDA package
-  selection. Keep the nixpkgs CUDA 12.6/SM 7.2 policy override isolated to this
-  package scope; do not alter a consumer's unrelated CUDA packages or claim an
-  SM 8.7 GPU.
+- R36.5.2 userspace CSV/container dependencies must come from the same exact
+  R36.5.2 scope as the driver libraries. Keep the firmware source input's
+  separate package recipes out of that closure.
+- Preserve the Xavier Volta `sm_72` target and isolate the CUDA 12.9/SM 7.2
+  policy override to this package scope. The selected toolkit includes nvcc
+  12.9.86 and cudart 12.9.79. Do not alter a consumer's unrelated CUDA packages
+  or claim an SM 8.7 GPU.
+- Pin the complete Jetson cuBLAS 12.2.5.6 component independently: matching
+  headers, `libcublas`, `libcublasLt`, and package metadata/outputs. Its native
+  `sm_72` code is absent from the newer Jetson cuBLAS payloads tested here.
+  The compiler, runtime, compatibility UMD and other components remain in the
+  selected CUDA 12.9 scope. Override the component through its complete pinned
+  release entry, preserving the private scope's declared dependency bindings;
+  do not copy individual shared libraries or import another toolkit's UMD.
+  Require actual SGEMM acceptance and validate other libraries/workload APIs
+  separately; a successful small BLAS test does not establish those APIs.
+- Keep `mk-overlay`'s `cudaMajorMinorPatchVersion = "12.6.10"`: it describes
+  the R36.5.2 BSP's native CUDA generation and selects its packaging helpers.
+  The exported `userspace.cudaMajorMinorVersion` therefore remains `12.6`;
+  the independently selected application toolkit is `cudaPackages_12_9`.
+- CUDA packages propagate `cuda_compat` 12.9.40580548, and nixpkgs prepends its
+  `compat` directory to application/library RUNPATHs ahead of the system driver
+  link. The Jetson extension supplies its matching R36.5.2 `l4t-core`
+  dependencies. Preserve that coupling for host and container applications and
+  record the actual mapped `libcuda` when validating a consumer's closure.
 
 For CMake consumers with strict dependency isolation, keep nvcc in native build
 inputs and CUDA libraries in host build inputs. If the project calls
@@ -81,10 +100,12 @@ requires the node service; creating the nodes alone does not prove a working GPU
 - Do not bring the legacy Realtek backport into 6.18 by default. Evaluate the
   in-tree driver if a relevant USB adapter is actually needed.
 - Follow the local-patch migration decisions in [sources.md](sources.md).
-- The reusable baseline is pinned to the hardware-validated Linux 6.18.46.
-  Point-release updates are separate experiments: check patch applicability,
-  build outputs, bootability, CUDA, networking and sustained traffic explicitly.
-  This is not a rolling security pin.
+- The selected kernel is Linux 6.18.57. Its staged boot/CUDA/container checks
+  and approximately 68-hour follow-up cover one AGX Xavier; the earlier
+  Linux 6.18.46 baseline was tested on two boards. Check patch applicability,
+  build outputs, bootability, CUDA, networking and sustained traffic explicitly
+  for future updates; see [validation.md](validation.md). This is an explicit
+  version pin rather than an automatic update mechanism.
 
 ## Thermal and power policy
 

@@ -1,0 +1,150 @@
+SPDX-FileCopyrightText: 2026 Akos Seres
+SPDX-License-Identifier: GPL-2.0-only
+
+Subject: [PATCH] watchdog: tegra: support context-bearing syscore registration
+
+Linux commit a97fbc3ee3e2 ("syscore: Pass context data to callbacks"),
+backported as ff422b8597c2 in Linux 6.18.52, separates registration into
+struct syscore and passes an opaque data pointer to each callback.
+The old register_syscore_ops interfaces are no longer declared there.
+
+Detect struct syscore through NVIDIA's compile-test machinery rather than
+assuming a kernel version boundary. Register a persistent static syscore
+object on the new API and adapt callback signatures without casts. Keep
+legacy registration and no-argument callbacks on kernels with the old API.
+
+The adapters retain the driver's existing singleton t18x_wdt policy and
+watchdog suspend/resume behaviour. Probe-error and remove paths unregister
+the same persistent object. This does not disable the watchdog or change
+its timeout, interrupt, shutdown, or device-tree policy.
+
+Target: OE4T linux-nv-oot ccf7646c57462776fe1093af6643c54653f59861.
+Link: https://github.com/gregkh/linux/commit/ff422b8597c287dbbac1d444330770114131dfba
+Upstream-Status: Pending
+
+diff --git a/nvidia-oot/drivers/watchdog/watchdog-tegra-t18x.c b/nvidia-oot/drivers/watchdog/watchdog-tegra-t18x.c
+--- a/nvidia-oot/drivers/watchdog/watchdog-tegra-t18x.c
++++ b/nvidia-oot/drivers/watchdog/watchdog-tegra-t18x.c
+@@ -94,6 +94,30 @@
+ MODULE_PARM_DESC(default_disable, "Default state of watchdog");
+ 
+ static struct syscore_ops tegra_wdt_t18x_syscore_ops;
++
++#if defined(NV_SYSCORE_STRUCT_PRESENT)
++static struct syscore tegra_wdt_t18x_syscore = {
++	.ops = &tegra_wdt_t18x_syscore_ops,
++};
++#endif
++
++static void tegra_wdt_t18x_register_syscore(void)
++{
++#if defined(NV_SYSCORE_STRUCT_PRESENT)
++	register_syscore(&tegra_wdt_t18x_syscore);
++#else
++	register_syscore_ops(&tegra_wdt_t18x_syscore_ops);
++#endif
++}
++
++static void tegra_wdt_t18x_unregister_syscore(void)
++{
++#if defined(NV_SYSCORE_STRUCT_PRESENT)
++	unregister_syscore(&tegra_wdt_t18x_syscore);
++#else
++	unregister_syscore_ops(&tegra_wdt_t18x_syscore_ops);
++#endif
++}
+ 
+ static struct tegra_wdt_t18x *to_tegra_wdt_t18x(struct watchdog_device *wdt)
+ {
+@@ -691,7 +715,7 @@
+ 	tegra_wdt_t18x_debugfs_init(twdt_t18x);
+ 
+ 	if (twdt_t18x->extended_suspend)
+-		register_syscore_ops(&tegra_wdt_t18x_syscore_ops);
++		tegra_wdt_t18x_register_syscore();
+ 
+ 	ret = devm_watchdog_register_device(&pdev->dev, &twdt_t18x->wdt);
+ 	if (ret) {
+@@ -707,7 +731,7 @@
+ 	__tegra_wdt_t18x_disable(twdt_t18x);
+ 
+ 	if (twdt_t18x->extended_suspend)
+-		unregister_syscore_ops(&tegra_wdt_t18x_syscore_ops);
++		tegra_wdt_t18x_unregister_syscore();
+ 
+ 	debugfs_remove_recursive(twdt_t18x->root);
+ 
+@@ -738,7 +762,7 @@
+ 	__tegra_wdt_t18x_disable(twdt_t18x);
+ 
+ 	if (twdt_t18x->extended_suspend)
+-		unregister_syscore_ops(&tegra_wdt_t18x_syscore_ops);
++		tegra_wdt_t18x_unregister_syscore();
+ 
+ 	debugfs_remove_recursive(twdt_t18x->root);
+ 
+@@ -797,9 +821,29 @@
+ static void tegra_wdt_t18x_syscore_resume(void) { }
+ #endif
+ 
++#if defined(NV_SYSCORE_STRUCT_PRESENT)
++/* Retain the driver's existing singleton watchdog policy. */
++static int tegra_wdt_t18x_syscore_suspend_context(void *data)
++{
++	(void)data;
++	return tegra_wdt_t18x_syscore_suspend();
++}
++
++static void tegra_wdt_t18x_syscore_resume_context(void *data)
++{
++	(void)data;
++	tegra_wdt_t18x_syscore_resume();
++}
++#endif
++
+ static struct syscore_ops tegra_wdt_t18x_syscore_ops = {
++#if defined(NV_SYSCORE_STRUCT_PRESENT)
++	.suspend =	tegra_wdt_t18x_syscore_suspend_context,
++	.resume =	tegra_wdt_t18x_syscore_resume_context,
++#else
+ 	.suspend =	tegra_wdt_t18x_syscore_suspend,
+ 	.resume =	tegra_wdt_t18x_syscore_resume,
++#endif
+ };
+ 
+ static const struct dev_pm_ops tegra_wdt_t18x_pm_ops = {
+diff --git a/nvidia-oot/scripts/conftest/Makefile b/nvidia-oot/scripts/conftest/Makefile
+--- a/nvidia-oot/scripts/conftest/Makefile
++++ b/nvidia-oot/scripts/conftest/Makefile
+@@ -237,6 +237,7 @@
+ NV_CONFTEST_GENERIC_COMPILE_TESTS += is_export_symbol_present_drm_gem_prime_handle_to_fd
+ NV_CONFTEST_MACRO_COMPILE_TESTS ?=
+ NV_CONFTEST_TYPE_COMPILE_TESTS += request_struct_has_completion_data_arg
++NV_CONFTEST_TYPE_COMPILE_TESTS += syscore_struct
+ NV_CONFTEST_SYMBOL_COMPILE_TESTS += is_export_symbol_present_crypto_engine_register_aead
+ 
+ $(eval $(call NV_GENERATE_COMPILE_TEST_HEADER,functions,$(NV_CONFTEST_FUNCTION_COMPILE_TESTS)))
+diff --git a/nvidia-oot/scripts/conftest/conftest.sh b/nvidia-oot/scripts/conftest/conftest.sh
+--- a/nvidia-oot/scripts/conftest/conftest.sh
++++ b/nvidia-oot/scripts/conftest/conftest.sh
+@@ -8665,6 +8665,20 @@
+             }"
+ 
+             compile_check_conftest "$CODE" "NV_TEGRA_DEV_IOMMU_GET_STREAM_ID_PRESENT" "" "functions"
++        ;;
++
++        syscore_struct)
++            #
++            # Detect the context-bearing syscore registration API, including
++            # its backport to stable kernels (upstream a97fbc3ee3e2).
++            #
++            CODE="
++            #include <linux/syscore_ops.h>
++            int conftest_syscore_struct(void) {
++                return sizeof(struct syscore);
++            }"
++
++            compile_check_conftest "$CODE" "NV_SYSCORE_STRUCT_PRESENT" "" "types"
+         ;;
+ 
+         timer_delete)

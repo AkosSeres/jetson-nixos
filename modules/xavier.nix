@@ -163,7 +163,7 @@ in
             pattern
           ]) runtime.csvIgnorePatterns;
           # Preserve store symlink targets behind /run/opengl-driver. The CSV
-          # driver root and all of these packages come from the same R36.4 pin.
+          # driver root and all of these packages come from the same R36.5.2 pin.
           mounts = lib.mkForce (
             map mount (
               [

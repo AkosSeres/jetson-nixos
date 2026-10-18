@@ -1,0 +1,117 @@
+From 21e83c7c8b85cef66aa48787072e7f8e21bf254e Mon Sep 17 00:00:00 2001
+From: atanand <atanand@nvidia.com>
+Date: Thu, 6 Feb 2025 14:34:32 +0000
+Subject: [PATCH] nvgpu: Fix CERT-C violations
+
+Fixed CERT-C INT30-C violations
+
+Jira NVGPU-11950
+Bug 6355239
+
+Change-Id: I8ace86175351cdeaec9e6005b10d00a352c793b0
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3297988
+(cherry picked from commit aba605e8ed2209a392ed0647db3d97dbdb808678)
+Signed-off-by: atanand <atanand@nvidia.com>
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3653247
+Tested-by: Sagar Kamble <skamble@nvidia.com>
+GVS: buildbot_gerritrpt <buildbot_gerritrpt@nvidia.com>
+Reviewed-by: Ankur Kishore <ankkishore@nvidia.com>
+Reviewed-by: Sagar Kamble <skamble@nvidia.com>
+---
+ .../gpu/nvgpu/include/nvgpu/static_analysis.h | 71 +++++++++++++++----
+ 1 file changed, 56 insertions(+), 15 deletions(-)
+
+diff --git a/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h b/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
+index e1fd1db8b..282288c56 100644
+--- a/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
++++ b/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
+@@ -475,30 +475,71 @@ static inline u32 nvgpu_safe_mult_u32(u32 ui_a, u32 ui_b)
+ }
+ 
+ /**
+- * @brief Multiply two u64 values and check for overflow.
++ * @brief Multiplies two unsigned 64-bit integers safely.
++ *
++ * @param ul_a   [in]	First multiplicand. Range: [0, ULONG_MAX]
++ * @param ul_b   [in]	Second multiplicand. Range: [0, ULONG_MAX]
++ * @param result [out]	Pointer to store the result of the multiplication.
++ *
++ * This function multiplies two unsigned 64-bit integers and checks for overflow.
++ * If the multiplication can be performed without overflow, the result is stored
++ * in the provided output parameter and the function returns true. If an overflow
++ * would occur, the function returns false and the output parameter is not modified.
++ *
++ * The steps performed by the function are as follows:
++ * -# Check if either of the multiplicands is zero. If so, set the result to zero
++ *    and return true, indicating successful multiplication without overflow.
++ * -# Check if the first multiplicand is greater than the maximum unsigned 64-bit
++ *    integer divided by the second multiplicand. If so, return false, indicating
++ *    that an overflow would occur.
++ * -# If neither of the above conditions are met, multiply the two multiplicands,
++ *    store the result in the output parameter, and return true, indicating
++ *    successful multiplication without overflow.
++ *
++ * @return true if the multiplication was successful without overflow.
++ * @return false if the multiplication would result in an overflow.
++ */
++static inline bool nvgpu_safe_mult_u64_return(u64 ul_a, u64 ul_b, u64 *result)
++{
++	if ((ul_a == 0UL) || (ul_b == 0UL)) {
++		*result = 0U;
++		return true;
++	} else if (ul_a > (ULONG_MAX / ul_b)) {
++		return false;
++	} else {
++		*result = ul_a * ul_b;
++		return true;
++	}
++}
++
++/**
++ * @brief Multiplies two unsigned 64-bit integers with overflow handling.
+  *
+- * @param ul_a [in]	Value of multiplicand.
+- * @param ul_b [in]	Value of multiplier.
++ * @param ul_a [in]	First multiplicand. Range: [0, ULONG_MAX]
++ * @param ul_b [in]	Second multiplicand. Range: [0, ULONG_MAX]
+  *
+- * Multiplies \a ul_a and \a ul_b unless the result will overflow a u32. If the
+- * result would overflow, call #BUG(). To determine whether the multiplication
+- * will cause an overflow, following steps are performed.
+- * - If \a ul_a or \a ul_b is 0 return 0 as multiplication result.
+- * - Else if \a ul_a is greater than ULONG_MAX division by \a ul_b,
+- *   multiplication will overflow so call #BUG().
+- * - Else return result of multiplication.
++ * This function multiplies two unsigned 64-bit integers using a safe multiplication
++ * function that checks for overflow. If an overflow occurs, the function triggers
++ * a bug report and returns zero. Otherwise, it returns the multiplication result.
+  *
+- * @return If no overflow, product of the two integers (\a ul_a * \a ul_b).
++ * The steps performed by the function are as follows:
++ * -# Initialize a result variable to zero.
++ * -# Call 'nvgpu_safe_mult_u64_return()' to attempt the multiplication. If this
++ *    function returns false, indicating an overflow, trigger a bug report using
++ *    'BUG()' and return zero.
++ * -# If the multiplication was successful without overflow, return the result.
++ *
++ * @return The result of the multiplication if successful, or zero if an overflow occurs.
+  */
+ static inline u64 nvgpu_safe_mult_u64(u64 ul_a, u64 ul_b)
+ {
+-	if ((ul_a == 0UL) || (ul_b == 0UL)) {
+-		return 0UL;
+-	} else if (ul_a > (ULONG_MAX / ul_b)) {
++	u64 result = 0U;
++
++	if (nvgpu_safe_mult_u64_return(ul_a, ul_b, &result) == false) {
+ 		BUG();
+ 		return 0U;
+ 	} else {
+-		return ul_a * ul_b;
++		return result;
+ 	}
+ }
+ 
+-- 
+GitLab
+

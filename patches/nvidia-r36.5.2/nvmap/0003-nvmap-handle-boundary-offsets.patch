@@ -1,0 +1,40 @@
+From 4adf488f7eba09f84ca2c50ab2ad5aedfdca37f3 Mon Sep 17 00:00:00 2001
+From: Ketan Patil <ketanp@nvidia.com>
+Date: Tue, 14 Jul 2026 17:15:56 +0000
+Subject: [PATCH] video: tegra: nvmap: handle boundary offsets correctly
+
+Treat an offset equal to the cumulative handle size as belonging to the
+next handle. Otherwise, the preceding handle is selected with a
+zero-length range and unnecessarily added to the destination's page
+reference list.
+
+Use >= when locating the start handle to preserve half-open range
+semantics.
+
+Bug 6355805
+
+Change-Id: Ie125f044ad3c3df3d611656f1b65d04c5bd297ac
+Signed-off-by: Ketan Patil <ketanp@nvidia.com>
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nv-oot/+/3663552
+GVS: buildbot_gerritrpt <buildbot_gerritrpt@nvidia.com>
+Reviewed-by: Pritesh Raithatha <praithatha@nvidia.com>
+---
+ drivers/video/tegra/nvmap/nvmap_ioctl.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/video/tegra/nvmap/nvmap_ioctl.c b/drivers/video/tegra/nvmap/nvmap_ioctl.c
+index 7178d031..701dc407 100644
+--- a/drivers/video/tegra/nvmap/nvmap_ioctl.c
++++ b/drivers/video/tegra/nvmap/nvmap_ioctl.c
+@@ -1548,7 +1548,7 @@ static int find_range_of_handles(struct nvmap_handle **hs, u32 nr,
+ 	/* Find start handle */
+ 	for (i = 0; i < nr; i++) {
+ 		tot_sz += hs[i]->size;
+-		if (offs > tot_sz) {
++		if (offs >= tot_sz) {
+ 			/*
+ 			 * Subtract only this handle's size (not the running
+ 			 * cumulative total) so offs_start stays as the offset
+-- 
+GitLab
+

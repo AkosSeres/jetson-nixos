@@ -1,0 +1,80 @@
+From 1a688bc56fe348cca5e37ba7e2c993a78c44e355 Mon Sep 17 00:00:00 2001
+From: Harish T <ht@nvidia.com>
+Date: Thu, 20 Feb 2025 06:39:05 +0000
+Subject: [PATCH] gpu: nvgpu: adding new safe U64 arithmetic functions for
+ return error
+
+- Existing safe arithmetic functions will crash gpu if overflow happened
+  which is not correct way to handle overflows, adding new safe U64
+  arithmetic functions those will return error code to caller function.
+
+jira NVGPU-11951
+Bug 6355239
+
+Change-Id: Ia7478f21b48b141fc98e734cd768a3d774fbdd2e
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3306657
+(cherry picked from commit fc5443b92cacfd16fafc033f1c18f72ce141960a)
+Signed-off-by: Harish T <ht@nvidia.com>
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3653405
+Reviewed-by: Ankur Kishore <ankkishore@nvidia.com>
+GVS: buildbot_gerritrpt <buildbot_gerritrpt@nvidia.com>
+Tested-by: Sagar Kamble <skamble@nvidia.com>
+Reviewed-by: Sagar Kamble <skamble@nvidia.com>
+---
+ .../gpu/nvgpu/include/nvgpu/static_analysis.h | 30 +++++++++++++++++--
+ 1 file changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h b/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
+index 282288c56..0e897508e 100644
+--- a/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
++++ b/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
+@@ -72,6 +72,30 @@ static inline bool nvgpu_safe_add_u32_return(u32 ui_a, u32 ui_b, u32 *result)
+ 	}
+ }
+ 
++/**
++ * @brief Add two u64 values and check for overflow.
++ *
++ * @param ui_a [in]	Addend value for adding.
++ * @param ui_b [in]	Addend value for adding.
++ * @param result [out]  Pointer to output value.
++ *
++ * Adds the two u64 (unsigned 64 bit) values unless the result will overflow a
++ * u64. Overflow will happen if the difference between ULONG_MAX (the max number
++ * representable with 64 bits) and one addend is less than the other addend.
++ * Return false in such a case else return true with sum.
++ *
++ * @return true If no overflow or false if overflow. .
++ */
++static inline bool nvgpu_safe_add_u64_return(u64 ul_a, u64 ul_b, u64 *result)
++{
++	if ((ULONG_MAX - ul_a) < ul_b) {
++		return false;
++	} else {
++		*result = ul_a + ul_b;
++		return true;
++	}
++}
++
+ /**
+  * @brief Multiply two u32 values and check for overflow.
+  *
+@@ -193,11 +217,13 @@ static inline s32 nvgpu_safe_add_s32(s32 si_a, s32 si_b)
+  */
+ static inline u64 nvgpu_safe_add_u64(u64 ul_a, u64 ul_b)
+ {
+-	if ((ULONG_MAX - ul_a) < ul_b) {
++	u64 result = 0UL;
++
++	if (nvgpu_safe_add_u64_return(ul_a, ul_b, &result) == false) {
+ 		BUG();
+ 		return 0U;
+ 	} else {
+-		return ul_a + ul_b;
++		return result;
+ 	}
+ }
+ 
+-- 
+GitLab
+

@@ -7,9 +7,9 @@ the dated observation window and the gates for subsequent updates.
 
 ## Build evidence (2026-09-13 onward)
 
-- Linux 6.18.46 is the current known-good baseline. All nine reference patches
-  and the local Xavier patches apply to this exact source pin. The reusable
-  kernel contract and the consuming system's contract validate different layers:
+- Linux 6.18.46 is the hardware-validated baseline documented here. All nine
+  reference patches and the local Xavier patches apply to this exact source pin.
+  The reusable kernel contract and the consuming system's contract validate different layers:
   this repository owns Xavier/CUDA/provider requirements, while consumers may
   add workload-specific kernel policy without changing the platform baseline.
 - Source revisions, recursive gitlinks and ordered patch presence checked.
