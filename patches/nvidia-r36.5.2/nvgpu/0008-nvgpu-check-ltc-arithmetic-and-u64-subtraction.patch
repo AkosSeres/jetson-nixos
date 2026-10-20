@@ -1,0 +1,262 @@
+From d23f41442f9d2a7829b9d7cec320ce54a844dd65 Mon Sep 17 00:00:00 2001
+From: atanand <atanand@nvidia.com>
+Date: Fri, 7 Feb 2025 16:02:10 +0000
+Subject: [PATCH] nvgpu: Fix CERT-C violations
+
+Fixed CERT-C INT30-C violations
+
+Jira NVGPU-11950
+Bug 6355239
+
+Change-Id: I0417a8e08013e8b977cbca4d626fb4e4c68da741
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3298707
+(cherry picked from commit d19285cd4c72bf55e89a36bc733d5efe121d6d90)
+Signed-off-by: atanand <atanand@nvidia.com>
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3653406
+Reviewed-by: Ankur Kishore <ankkishore@nvidia.com>
+Reviewed-by: Sagar Kamble <skamble@nvidia.com>
+GVS: buildbot_gerritrpt <buildbot_gerritrpt@nvidia.com>
+Tested-by: Sagar Kamble <skamble@nvidia.com>
+---
+ drivers/gpu/nvgpu/hal/gr/gr/gr_ga10b.c        | 12 +++-
+ drivers/gpu/nvgpu/hal/ltc/ltc_ga10b.c         | 11 +++-
+ drivers/gpu/nvgpu/hal/ltc/ltc_ga10b.h         |  4 +-
+ drivers/gpu/nvgpu/hal/ltc/ltc_gm20b_dbg.c     | 20 ++++--
+ drivers/gpu/nvgpu/include/nvgpu/gops/ltc.h    |  4 +-
+ .../gpu/nvgpu/include/nvgpu/static_analysis.h | 63 ++++++++++++++++---
+ 6 files changed, 91 insertions(+), 23 deletions(-)
+
+diff --git a/drivers/gpu/nvgpu/hal/gr/gr/gr_ga10b.c b/drivers/gpu/nvgpu/hal/gr/gr/gr_ga10b.c
+index 8de5ed0f0..dea7af738 100644
+--- a/drivers/gpu/nvgpu/hal/gr/gr/gr_ga10b.c
++++ b/drivers/gpu/nvgpu/hal/gr/gr/gr_ga10b.c
+@@ -1,7 +1,7 @@
+ /*
+  * GA10b GPU GR
+  *
+- * Copyright (c) 2020-2022, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (c) 2020-2026, NVIDIA CORPORATION.  All rights reserved.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a
+  * copy of this software and associated documentation files (the "Software"),
+@@ -535,6 +535,7 @@ int gr_ga10b_create_priv_addr_table(struct gk20a *g,
+ 	u32 gpc_num = 0U, tpc_num = 0U, ppc_num = 0U, be_num = 0U;
+ 	u32 broadcast_flags = 0U;
+ 	u32 t;
++	u32 ltc_shared_base;
+ 	int err;
+ 
+ 	t = 0U;
+@@ -559,8 +560,13 @@ int gr_ga10b_create_priv_addr_table(struct gk20a *g,
+ 		if (broadcast_flags & PRI_BROADCAST_FLAGS_LTCS) {
+ 			priv_addr_table[t++] = addr;
+ 		} else {
+-			priv_addr_table[t++] =
+-				g->ops.ltc.pri_shared_addr(g, addr);
++			err = g->ops.ltc.pri_shared_addr(g, addr, &ltc_shared_base);
++			if (err != 0) {
++				nvgpu_err(g, "failed to fetch ltc shared base address");
++				return err;
++			}
++
++			priv_addr_table[t++] = ltc_shared_base;
+ 		}
+ 		*num_registers = t;
+ 		return 0;
+diff --git a/drivers/gpu/nvgpu/hal/ltc/ltc_ga10b.c b/drivers/gpu/nvgpu/hal/ltc/ltc_ga10b.c
+index a7b367e63..119b236fe 100644
+--- a/drivers/gpu/nvgpu/hal/ltc/ltc_ga10b.c
++++ b/drivers/gpu/nvgpu/hal/ltc/ltc_ga10b.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2020-2021, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (c) 2020-2026, NVIDIA CORPORATION.  All rights reserved.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a
+  * copy of this software and associated documentation files (the "Software"),
+@@ -69,7 +69,7 @@ void ga10b_ltc_set_zbc_depth_entry(struct gk20a *g, u32 depth_val, u32 index)
+ #endif
+ 
+ #ifdef CONFIG_NVGPU_DEBUGGER
+-u32 ga10b_ltc_pri_shared_addr(struct gk20a *g, u32 addr)
++int ga10b_ltc_pri_shared_addr(struct gk20a *g, u32 addr, u32 *ltc_shared_addr)
+ {
+ 	u32 ltc_stride = nvgpu_get_litter_value(g, GPU_LIT_LTC_STRIDE);
+ 	u32 lts_stride = nvgpu_get_litter_value(g, GPU_LIT_LTS_STRIDE);
+@@ -79,6 +79,11 @@ u32 ga10b_ltc_pri_shared_addr(struct gk20a *g, u32 addr)
+ 	u32 ltc_addr = addr & ltc_addr_mask;
+ 	u32 lts_addr = ltc_addr & lts_addr_mask;
+ 
+-	return ltc_shared_base + lts_addr;
++	if (nvgpu_safe_add_u32_return(ltc_shared_base, lts_addr, ltc_shared_addr) == false) {
++		nvgpu_err(g, "buffer overflow");
++		return -EOVERFLOW;
++	}
++
++	return 0;
+ }
+ #endif
+diff --git a/drivers/gpu/nvgpu/hal/ltc/ltc_ga10b.h b/drivers/gpu/nvgpu/hal/ltc/ltc_ga10b.h
+index 982888ef6..54ead5a13 100644
+--- a/drivers/gpu/nvgpu/hal/ltc/ltc_ga10b.h
++++ b/drivers/gpu/nvgpu/hal/ltc/ltc_ga10b.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2020-2022, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (c) 2020-2026, NVIDIA CORPORATION.  All rights reserved.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a
+  * copy of this software and associated documentation files (the "Software"),
+@@ -47,7 +47,7 @@ void ga10b_set_default_l2_max_ways_evict_last(struct gk20a *g,
+ 			struct nvgpu_gr_ctx *gr_ctx);
+ #endif
+ #ifdef CONFIG_NVGPU_DEBUGGER
+-u32 ga10b_ltc_pri_shared_addr(struct gk20a *g, u32 addr);
++int ga10b_ltc_pri_shared_addr(struct gk20a *g, u32 addr, u32 *ltc_shared_addr) ;
+ int ga10b_set_l2_max_ways_evict_last(struct gk20a *g, struct nvgpu_tsg *tsg,
+ 		u32 num_ways);
+ int ga10b_get_l2_max_ways_evict_last(struct gk20a *g, struct nvgpu_tsg *tsg,
+diff --git a/drivers/gpu/nvgpu/hal/ltc/ltc_gm20b_dbg.c b/drivers/gpu/nvgpu/hal/ltc/ltc_gm20b_dbg.c
+index 287dcbc26..7374e0da8 100644
+--- a/drivers/gpu/nvgpu/hal/ltc/ltc_gm20b_dbg.c
++++ b/drivers/gpu/nvgpu/hal/ltc/ltc_gm20b_dbg.c
+@@ -1,7 +1,7 @@
+ /*
+  * GM20B L2
+  *
+- * Copyright (c) 2014-2022, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (c) 2014-2026, NVIDIA CORPORATION.  All rights reserved.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a
+  * copy of this software and associated documentation files (the "Software"),
+@@ -68,9 +68,21 @@ bool gm20b_ltc_is_ltcn_ltss_addr(struct gk20a *g, u32 addr)
+ {
+ 	u32 lts_shared_base = ltc_ltc0_ltss_v();
+ 	u32 lts_stride = nvgpu_get_litter_value(g, GPU_LIT_LTS_STRIDE);
+-	u32 addr_mask = nvgpu_get_litter_value(g, GPU_LIT_LTC_STRIDE) - 1U;
+-	u32 base_offset = lts_shared_base & addr_mask;
+-	u32 end_offset = nvgpu_safe_add_u32(base_offset, lts_stride);
++	u32 addr_mask;
++	u32 base_offset;
++	u32 end_offset;
++
++	if (nvgpu_safe_sub_u32_return(nvgpu_get_litter_value(g, GPU_LIT_LTC_STRIDE), 1U, &addr_mask) == false) {
++		nvgpu_err(g, "buffer underflow");
++		return false;
++	}
++
++	base_offset = lts_shared_base & addr_mask;
++
++	if (nvgpu_safe_add_u32_return(base_offset, lts_stride, &end_offset) == false) {
++		nvgpu_err(g, "buffer overflow");
++		return false;
++	}
+ 
+ 	return (!gm20b_ltc_is_ltcs_ltss_addr(g, addr)) &&
+ 		((addr & addr_mask) >= base_offset) &&
+diff --git a/drivers/gpu/nvgpu/include/nvgpu/gops/ltc.h b/drivers/gpu/nvgpu/include/nvgpu/gops/ltc.h
+index 3f12b04a1..ce75df467 100644
+--- a/drivers/gpu/nvgpu/include/nvgpu/gops/ltc.h
++++ b/drivers/gpu/nvgpu/include/nvgpu/gops/ltc.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (c) 2019-2026, NVIDIA CORPORATION.  All rights reserved.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a
+  * copy of this software and associated documentation files (the "Software"),
+@@ -455,7 +455,7 @@ struct gops_ltc {
+ 	u32 (*pri_is_lts_tstg_addr)(struct gk20a *g, u32 addr);
+ 	int (*set_l2_sector_promotion)(struct gk20a *g, struct nvgpu_tsg *tsg,
+ 			u32 policy);
+-	u32 (*pri_shared_addr)(struct gk20a *g, u32 addr);
++	int (*pri_shared_addr)(struct gk20a *g, u32 addr, u32 *ltc_shared_addr);
+ #endif
+ 	/** @endcond DOXYGEN_SHOULD_SKIP_THIS */
+ 
+diff --git a/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h b/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
+index 0e897508e..7cf87b2d3 100644
+--- a/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
++++ b/drivers/gpu/nvgpu/include/nvgpu/static_analysis.h
+@@ -413,24 +413,69 @@ static inline s32 nvgpu_safe_sub_s32(s32 si_a, s32 si_b)
+ }
+ 
+ /**
+- * @brief Subtract two u64 values and check for underflow.
++ * @brief Subtracts two unsigned 64-bit integers and checks for underflow.
+  *
+- * @param ul_a [in]	Value of minuend.
+- * @param ul_b [in]	Value of subtrahend.
++ * @param ul_a   [in]	The minuend in the subtraction.
++ * @param ul_b   [in]	The subtrahend in the subtraction.
++ * @param result [out]	The result of the subtraction if no underflow occurs.
+  *
+- * Subtracts \a ul_b from \a ul_a unless the result will underflow a u64
+- * (unsigned 64 bit). If \a ul_a is less than \a ul_b then result would
+- * underflow so call #BUG().
++ * This function subtracts the second unsigned 64-bit integer from the first and
++ * checks if the subtraction results in an underflow. If no underflow occurs, the
++ * result is stored in the output parameter and the function returns true. If an
++ * underflow occurs, the function returns false and the output parameter is not
++ * modified.
+  *
+- * @return If no overflow, difference of the two integers (\a ul_a - \a ul_b).
++ * The steps performed by the function are as follows:
++ * -# Check if the subtraction would result in an underflow by comparing the first
++ *    parameter with the second.
++ * -# If the first parameter is less than the second, return false indicating
++ *    an underflow.
++ * -# Otherwise, subtract the second parameter from the first and store the result
++ *    in the output parameter.
++ * -# Return true indicating successful subtraction without underflow.
++ *
++ * @return True if the subtraction did not underflow, otherwise false.
+  */
+-static inline u64 nvgpu_safe_sub_u64(u64 ul_a, u64 ul_b)
++static inline bool nvgpu_safe_sub_u64_return(u64 ul_a, u64 ul_b, u64 *result)
+ {
+ 	if (ul_a < ul_b) {
++		return false;
++	} else {
++		*result = ul_a - ul_b;
++		return true;
++	}
++}
++
++/**
++ * @brief Subtracts two unsigned 64-bit integers with underflow protection.
++ *
++ * @param ul_a [in]	The minuend in the subtraction.
++ * @param ul_b [in]	The subtrahend in the subtraction.
++ *
++ * This function attempts to subtract the second unsigned 64-bit integer from the
++ * first with a check for underflow. If an underflow occurs, the function triggers
++ * a bug report and returns zero. If no underflow occurs, it returns the result of
++ * the subtraction.
++ *
++ * The steps performed by the function are as follows:
++ * -# Initialize a result variable to zero.
++ * -# Call 'nvgpu_safe_sub_u64_return()' to attempt the subtraction and check for
++ *    underflow.
++ * -# If 'nvgpu_safe_sub_u64_return()' returns false, indicating an underflow,
++ *    trigger a bug report using 'BUG()' and return zero.
++ * -# If no underflow occurs, return the result of the subtraction.
++ *
++ * @return The result of the subtraction if no underflow occurs, otherwise zero.
++ */
++static inline u64 nvgpu_safe_sub_u64(u64 ul_a, u64 ul_b)
++{
++	u64 result = 0U;
++
++	if (nvgpu_safe_sub_u64_return(ul_a, ul_b, &result) == false) {
+ 		BUG();
+ 		return 0U;
+ 	} else {
+-		return ul_a - ul_b;
++		return result;
+ 	}
+ }
+ 
+-- 
+GitLab
+

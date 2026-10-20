@@ -14,7 +14,7 @@
 
     # Source-only inputs: do not apply either upstream default overlay/module.
     jetpack-r36 = {
-      url = "github:anduril/jetpack-nixos/98a83b7d737ed636439c7fdc628a875eaf4cce15";
+      url = "github:anduril/jetpack-nixos/d4c4a515ae57a3c85fa3fb17e02a8fa1fe66a600";
       flake = false;
     };
     jetpack-r35 = {
@@ -54,11 +54,21 @@
             overlays = [ overlay ];
           };
           targetPkgs = if system == "aarch64-linux" then pkgs else pkgs.pkgsCross.aarch64-multiplatform;
-          inherit (targetPkgs.jetson-xavier) kernel nvidia-oot cuda-smoke;
+          inherit (targetPkgs.jetson-xavier)
+            kernel
+            nvidia-oot
+            cuda-smoke
+            cuda-cublas-smoke
+            ;
         in
         (import ./pkgs/sources.nix { inherit pkgs inputs linuxSource; })
         // {
-          inherit kernel nvidia-oot cuda-smoke;
+          inherit
+            kernel
+            nvidia-oot
+            cuda-smoke
+            cuda-cublas-smoke
+            ;
           firmware = pkgs.jetson-xavier.firmware.combined;
           userspace = pkgs.linkFarm "xavier-headless-userspace" (
             map

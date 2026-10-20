@@ -10,36 +10,104 @@ hashes. The NVIDIA Git input additionally requests recursive submodules.
 | --- | --- | --- |
 | [nixpkgs](https://github.com/NixOS/nixpkgs/commit/f4f698677b11021a8f84f452e23ae9ef2427bec3) | `f4f698677b11021a8f84f452e23ae9ef2427bec3` | Audited NixOS 26.05 package set |
 | [nvidia-oot](https://github.com/OE4T/nvidia-kernel-oot/commit/3428d01926de97ca8b0f25fe6edd9c76e19472a1) | `3428d01926de97ca8b0f25fe6edd9c76e19472a1` | OE4T R36.5 / Linux 6.18 OOT superproject |
-| [jetpack-r36](https://github.com/anduril/jetpack-nixos/commit/98a83b7d737ed636439c7fdc628a875eaf4cce15) | `98a83b7d737ed636439c7fdc628a875eaf4cce15` | JetPack 6.2.1 / L4T 36.4.4 package recipes |
+| [jetpack-r36](https://github.com/anduril/jetpack-nixos/commit/d4c4a515ae57a3c85fa3fb17e02a8fa1fe66a600) | `d4c4a515ae57a3c85fa3fb17e02a8fa1fe66a600` | JetPack 6.2.3 / L4T 36.5.2 package recipes |
 | [jetpack-r35](https://github.com/anduril/jetpack-nixos/commit/cade3c198b8169ee7fd46dbdc283c714d9923951) | `cade3c198b8169ee7fd46dbdc283c714d9923951` | JetPack 5.1.7 / L4T 35.6.5 firmware recipes |
 
 Both JetPack inputs are fetched as source-only inputs, not imported flakes.
 The experimental overlay imports R36's package-scope recipes explicitly.
-The R36 pin records CUDA 12.6.10 and driver 540.4.0; the R35 pin also contains
-newer generations that must not become the userspace source by accident.
+The R36 pin records the BSP's native CUDA 12.6.10 and driver 540.5.0. This
+packaging metadata is independent of the selected CUDA 12.9 application toolkit
+and compatibility UMD described below. The R35 pin also contains newer
+generations that must not become the userspace source by accident.
 
 The Armbian installer tracks APT candidates from common/t234 R36.4 plus t194
 R35.6 repositories. It is architectural evidence, **not** a byte-exact userspace
-manifest. Choosing L4T 36.4.4 makes our input reproducible; it does not establish
+manifest. Choosing L4T 36.4.4 made the earlier input reproducible; it did not establish
 that the original demonstration used those exact packages or prove Xavier
-runtime compatibility.
+runtime compatibility. The selected L4T 36.5.2 userspace is a subsequent
+candidate with its own build and runtime validation gates.
+
+## CUDA toolkit, compatibility UMD and cuBLAS
+
+The private `cudaPackages_12_9` scope uses the pinned nixpkgs copy of NVIDIA's
+[CUDA 12.9 Update 1 redistributable manifest](https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.9.1.json),
+with the complete Jetson cuBLAS component pinned independently:
+
+| Component | Version | NVIDIA payload |
+| --- | --- | --- |
+| nvcc | 12.9.86 | `linux-aarch64` Jetson |
+| cudart | 12.9.79 | `linux-aarch64` Jetson |
+| CCCL | 12.9.27 | `linux-aarch64` Jetson |
+| `cuda_compat` | 12.9.40580548 | `linux-aarch64` Jetson |
+| cuBLAS and cuBLASLt | 12.2.5.6 | `linux-aarch64` Jetson |
+
+[`sources/cublas-12.2.5.6.json`](../sources/cublas-12.2.5.6.json) preserves the
+complete original cuBLAS entry from NVIDIA's
+[CUDA 12.2 Update 2 manifest](https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.2.2.json).
+The private per-library override passes that release entry to `buildRedist`
+at construction time, retaining its original version, URLs and hashes.
+It packages matching cuBLAS headers, `libcublas`, `libcublasLt` and other
+component outputs with the same CUDA 12.9 hooks and declared dependency scope.
+It does not switch the whole toolkit or bring another scope's runtime/UMD.
+A consumer's nixpkgs follow can change the other components and package recipes;
+inspect the final source selection and closure too.
+
+The selected payload is
+[`libcublas-linux-aarch64-12.2.5.6-archive.tar.xz`](https://developer.download.nvidia.com/compute/cuda/redist/libcublas/linux-aarch64/libcublas-linux-aarch64-12.2.5.6-archive.tar.xz),
+SHA-256 `db001ba7f3e33568846b1c37ccdf54dcea66396975e43720471d799d08e1eb5f`.
+NVIDIA cuobjdump inspection finds native `sm_72` cubins in both shared libraries;
+their embedded PTX targets `sm_90`, so the Xavier gate must exercise native code.
+NVIDIA documents [same-major toolkit/library mixing](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html),
+subject to library dependencies and available APIs. This supports testing the
+mixed component selection; it does not validate all CUDA 12.9 library APIs or
+the custom Xavier/mainline stack.
+
+The original Jetson cuBLAS 12.6.4.1 payload contains only `sm_87` code; its
+12.9.1.4 successor contains only `sm_87` and `sm_101` cubins. Neither includes
+Volta code. Their isolated Xavier tests fail `cublasCreate` with
+`CUBLAS_STATUS_ARCH_MISMATCH`, including the CUDA 12.6 baseline. A tested SBSA
+12.9 alternative also failed initialization and was not selected. See
+[validation](validation.md) for the trial matrix and scope of those failures.
+
+The selected compatibility payload is
+[`cuda_compat-linux-aarch64-12.9.40580548-archive.tar.xz`](https://developer.download.nvidia.com/compute/cuda/redist/cuda_compat/linux-aarch64/cuda_compat-linux-aarch64-12.9.40580548-archive.tar.xz),
+SHA-256 `c03fe18b9d23881f068ac97b45001a47778f83d2361728427a3f92b551b1c898`.
+Its Jetson `libcuda.so.1.1` depends on `libnvrm_gpu.so` and `libnvrm_mem.so`;
+the Jetson packaging extension supplies the matching R36.5.2 core libraries.
+Nixpkgs propagates this compatibility UMD and prepends it to CUDA application
+and library RUNPATHs. Keeping the original R36.5.2 driver package derivations
+does not keep the native BSP UMD selected inside those application processes.
+
+NVIDIA's [CUDA for Tegra upgrade table](https://docs.nvidia.com/cuda/archive/12.9.2/cuda-for-tegra-appnote/index.html#deployment-considerations-for-cuda-upgrade-package)
+documents CUDA 12.9 upgrade packages for JetPack 6.x. Record actual mapped
+libraries and driver API versions during hardware testing. `mk-overlay` retains
+CUDA 12.6.10 as native BSP metadata and its packaging-helper selector while the
+exported application package scope selects CUDA 12.9. Other math libraries and
+inference stacks need their own dependency and GPU-architecture assessment;
+cuBLAS selection alone does not establish their compatibility.
 
 ## Linux archive
 
-The known-good version is `6.18.46`, recorded in
+The selected maintenance release is `6.18.57`, recorded in
 [`sources/linux.nix`](../sources/linux.nix).
 
-- [Release archive](https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.46.tar.xz)
+- [Release archive](https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.57.tar.xz)
 - [Publisher checksum list](https://cdn.kernel.org/pub/linux/kernel/v6.x/sha256sums.asc)
-- SHA-256: `f5d44b93808b02cc2969c5404ba081d97523719c9fd2ba2de6db318b4141cca0`
-- Nix SRI: `sha256-9dRLk4CLAswpacVAS6CB2XUjcZyf0rot5tsxi0FBzKA=`
+- SHA-256: `5bd9acdc82ec5efc3790ae840e5aaa40dfde7efff261cf6dde902dc570acf98c`
+- Nix SRI: `sha256-W9ms3ILsXvw3kK6EDlqqQN/efv/yYc9t3pAtxXCs+Yw=`
+
+Linux `6.18.46` is the earlier two-board hardware baseline (archive SHA-256
+`f5d44b93808b02cc2969c5404ba081d97523719c9fd2ba2de6db318b4141cca0`).
+The [validation record](validation.md) separates that historical evidence from
+the staged 6.18.57 checks and approximately 68-hour follow-up on one updated
+board, and describes the upstream stmmac maintenance fixes.
 
 This is an explicit reproducibility pin, not an automatic update mechanism. The
 community reference used `6.18.22` (archive SHA-256
 `a23c92faf3657385c2c6b5f4edd8f81b808907ebe603fa30699eae224da55f59`).
 The reference patches and generated configuration were checked on that baseline
-before moving to 6.18.46. Later 6.18.51/6.18.52 experiments are not part of this
-known-good baseline.
+before moving to 6.18.46. The 6.18.51/6.18.52 experiments do not form part of
+the hardware-validated baseline.
 
 This is a hash of the compressed archive, not a recursive NAR hash.
 Fetching verifies the bytes against the recorded hash; it does not perform
@@ -72,7 +140,9 @@ repository itself.
 inventory. Paths are relative to this repository; the kernel/OOT derivations
 apply the vendored files under `patches/armbian/`. Their original revision,
 paths and licenses are recorded in the [provenance note](../patches/armbian/README.md).
-The selection and patch bytes are unchanged from the former Armbian input.
+The ordered selection is unchanged from the former Armbian input. Patch bytes
+are unchanged except for Linux patch `0011`, rebased for 6.18.57 as described
+below and in the provenance note.
 
 ### Linux: nine patches, 0004–0012
 
@@ -93,6 +163,12 @@ These target the Linux tree.
 | 0012 | EQOS multi-queue device-tree configuration |
 
 The unrelated HiKey960 and Phytium patches in the same directory are excluded.
+
+Linux patch `0011` retains the original authors' RX recovery code, attribution,
+upstream link, `Fixes` tag and sign-offs. Its local 6.18.57 refresh adds a rebase
+note, updates hunk positions and includes the existing `fcs_stripped` declaration
+in the context. This is a patch-byte exception to the original import, not a
+change to the recovery logic.
 
 ### OOT: fifteen patches, 0006–0020
 
@@ -147,8 +223,36 @@ Local OOT patches run after the fifteen reference patches:
   the external host1x firewall when the in-tree host1x config is disabled.
 - `patches/nvidia-oot/0002-*` excludes optional camera, audio, SPI, VSE/SE and CEC
   providers from the headless OOT build, avoiding overlaps with mainline modules.
+- `patches/nvidia-oot/0003-*` detects the context-bearing `struct syscore` API
+  introduced to Linux 6.18.y by commit `ff422b8597c2` in 6.18.52. It preserves
+  the watchdog's static registration lifetime and existing singleton
+  suspend/resume behaviour through correctly typed callback adapters, while
+  retaining the legacy API on older kernels. Probe-error and remove paths
+  unregister the same object; this does not disable the watchdog or fix its
+  pre-existing singleton/multiple-device assumptions. See the
+  [upstream API change](https://github.com/gregkh/linux/commit/ff422b8597c287dbbac1d444330770114131dfba).
 - `patches/nvgpu/0001-*` fixes matching-free and partial scatterlist cleanup in
   the pinned nvgpu tree, retaining the original author's attribution.
+
+### NVIDIA R36.5.2 security backports
+
+After the existing nineteen OOT patches, apply three NvMap and eight nvgpu
+patches from [the upstream patch manifest](../patches/nvidia-r36.5.2/manifest.json).
+The exact NVIDIA email patches are retained byte-for-byte, with original
+authors, review/sign-off metadata and licenses. Apply them within their source
+subdirectories; the source pins and modern-kernel adaptations remain unchanged.
+
+The NvMap series fixes invalid-handle dereferences and kernel out-of-bounds
+access through unchecked fd-from-list offset/size/range calculations. The
+nvgpu series adds checked arithmetic and range validation in GV11B, AS
+allocation/remapping, copy-engine and register-access paths. Its helper
+dependencies require applying all eight patches together before building.
+See the [provenance and integration note](../patches/nvidia-r36.5.2/README.md).
+
+These patches preserve the existing nvgpu DMA failure cleanup and NvMap page
+allocation/accounting/retry policy. They require a fresh matching module build
+and hardware regression checks; source applicability alone is not runtime
+validation or a complete security audit.
 
 ### Allocator behaviour in the pinned sources
 

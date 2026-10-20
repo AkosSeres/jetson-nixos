@@ -52,7 +52,7 @@ let
     SENSORS_PWM_FAN = "y";
   };
 in
-assert kernel.version == "6.18.46";
+assert kernel.version == "6.18.57";
 pkgs.runCommand "xavier-kernel-contract-${kernel.version}" { } ''
   ${lib.concatStringsSep "\n" (
     lib.mapAttrsToList (name: value: ''

@@ -1,0 +1,75 @@
+From 6910f7b72e7ad5369344d04ac4cd1c33a53cec0e Mon Sep 17 00:00:00 2001
+From: srajum <srajum@nvidia.com>
+Date: Tue, 4 Feb 2025 10:33:37 +0530
+Subject: [PATCH] gpu: nvgpu: fix certc violations
+
+INT30-C Ensure that unsigned integer operations do not wrap
+
+JIRA NVGPU-11866
+Bug 6355239
+
+Change-Id: Id5b716e12464ea517903535d18e33e48592368f4
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3295292
+(cherry picked from commit a96f52c25ad6cbf8d705100973f7836164d16ea1)
+Signed-off-by: srajum <srajum@nvidia.com>
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3653111
+Reviewed-by: Ankur Kishore <ankkishore@nvidia.com>
+GVS: buildbot_gerritrpt <buildbot_gerritrpt@nvidia.com>
+Tested-by: Sagar Kamble <skamble@nvidia.com>
+Reviewed-by: Sagar Kamble <skamble@nvidia.com>
+---
+ drivers/gpu/nvgpu/hal/gr/gr/gr_gv11b.c | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/gpu/nvgpu/hal/gr/gr/gr_gv11b.c b/drivers/gpu/nvgpu/hal/gr/gr/gr_gv11b.c
+index 470bf7487..517316c3b 100644
+--- a/drivers/gpu/nvgpu/hal/gr/gr/gr_gv11b.c
++++ b/drivers/gpu/nvgpu/hal/gr/gr/gr_gv11b.c
+@@ -1,7 +1,7 @@
+ /*
+  * GV11b GPU GR
+  *
+- * Copyright (c) 2016-2023, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (c) 2016-2026, NVIDIA CORPORATION.  All rights reserved.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a
+  * copy of this software and associated documentation files (the "Software"),
+@@ -798,8 +798,8 @@ static void gv11b_gr_sm_stop_trigger_enable(struct gk20a *g)
+ 					gr_gpc0_tpc0_sm0_dbgr_control0_r() + offset);
+ 				dbgr_control0 |=
+ 					gr_gpc0_tpc0_sm0_dbgr_control0_stop_trigger_enable_f();
+-				nvgpu_writel(g,
+-					gr_gpc0_tpc0_sm0_dbgr_control0_r() + offset, dbgr_control0);
++				nvgpu_writel(g, nvgpu_safe_add_u32(gr_gpc0_tpc0_sm0_dbgr_control0_r(), offset),
++					dbgr_control0);
+ 				nvgpu_log(g, gpu_dbg_intr | gpu_dbg_gpu_dbg,
+ 					"gpc(%d) tpc(%d) sm(%d) assert stop trigger "
+ 					"dbgr_control0: 0x%08x, "
+@@ -2126,10 +2126,21 @@ int gr_gv11b_create_priv_addr_table(struct gk20a *g,
+ 	} else if ((addr_type == CTXSW_ADDR_TYPE_FBP) &&
+ 		   ((broadcast_flags & PRI_BROADCAST_FLAGS_PMM_FBPS) != 0U)) {
+ 		u32 domain_start;
++		u32 result = 0;
++
++		if (nvgpu_safe_add_u32_return(NV_PERF_PMMFBP_FBPS,
++						PRI_PMMS_ADDR_MASK(addr), &result) == false) {
++			nvgpu_err(g, "Buffer overflow");
++			return -EOVERFLOW;
++		}
++
++		if (nvgpu_safe_sub_u32_return(addr, result, &result)  == false) {
++			nvgpu_err(g, "Buffer overflow");
++			return -EOVERFLOW;
++		}
++
++		domain_start = result / perf_pmmgpc_perdomain_offset_v();
+ 
+-		domain_start = (addr -
+-			(NV_PERF_PMMFBP_FBPS + PRI_PMMS_ADDR_MASK(addr)))/
+-			perf_pmmgpc_perdomain_offset_v();
+ 		gr_gv11b_split_pmm_fbp_broadcast_address(g,
+ 			PRI_PMMS_ADDR_MASK(addr),
+ 			priv_addr_table, &t,
+-- 
+GitLab
+

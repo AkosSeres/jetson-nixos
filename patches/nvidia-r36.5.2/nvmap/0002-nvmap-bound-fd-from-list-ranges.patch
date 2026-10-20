@@ -1,0 +1,159 @@
+From 16018497e0814ea9f54be4bc8642c1ff83a07a19 Mon Sep 17 00:00:00 2001
+From: Ketan Patil <ketanp@nvidia.com>
+Date: Wed, 1 Jul 2026 10:32:55 +0000
+Subject: [PATCH] video: tegra: nvmap: fix out-of-bounds access in fd-from-list
+ ioctl
+
+The NVMAP_IOC_GET_FD_FOR_RANGE_FROM_LIST ioctl, reachable by any
+process that can open /dev/nvmap, mishandled attacker-controlled
+offset/size and multi-handle ranges, leading to kernel-heap
+out-of-bounds accesses.
+
+Fix the offset/size handling:
+
+- nvmap_ioctl_get_fd_from_list(): reject a non-page-aligned offset.
+  The destination handle is sized to PAGE_ALIGN(size), so an unaligned
+  offset makes the page copy span one more page than the destination
+  pages[] array can hold, causing an out-of-bounds write.
+
+- nvmap_ioctl_get_fd_from_list(): use check_add_overflow() for the
+  offset+size bound so a crafted (offset, size) pair cannot wrap around
+  u64 and slip past the total-size check.
+
+- find_range_of_handles(): subtract only the current handle's size
+  (not the running cumulative total) when locating the start handle.
+  The cumulative subtraction underflowed offs_start once more than one
+  handle was skipped, driving an out-of-bounds source page read.
+
+- nvmap_assign_pages_to_handle(): bound end_cur by the room left in the
+  handle from the current offset (hs[i]->size - start) instead of
+  hs[i]->size. When the first handle of a multi-handle range is entered
+  at a non-zero offset, the old bound over-copied past the source
+  handle and the destination pages[] array.
+
+Bug 6355805
+
+Change-Id: I347dfa4e81406130bdeb999824f14157756cf1bc
+Signed-off-by: Ketan Patil <ketanp@nvidia.com>
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nv-oot/+/3655916
+Reviewed-by: Pritesh Raithatha <praithatha@nvidia.com>
+GVS: buildbot_gerritrpt <buildbot_gerritrpt@nvidia.com>
+---
+ drivers/video/tegra/nvmap/nvmap_alloc.c | 15 ++++++++++---
+ drivers/video/tegra/nvmap/nvmap_ioctl.c | 29 ++++++++++++++++++++++---
+ 2 files changed, 38 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/video/tegra/nvmap/nvmap_alloc.c b/drivers/video/tegra/nvmap/nvmap_alloc.c
+index 280fcd21..5aaa26d2 100644
+--- a/drivers/video/tegra/nvmap/nvmap_alloc.c
++++ b/drivers/video/tegra/nvmap/nvmap_alloc.c
+@@ -1,5 +1,5 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+-// SPDX-FileCopyrightText: Copyright (c) 2011-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++// SPDX-FileCopyrightText: Copyright (c) 2011-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ /*
+  * Handle allocation and freeing routines for nvmap
+  */
+@@ -1331,6 +1331,7 @@ int nvmap_assign_pages_to_handle(struct nvmap_client *client,
+ 	size_t nr_page = h->size >> PAGE_SHIFT;
+ 	struct page **pages;
+ 	u64 end_cur = 0;
++	u64 avail = 0;
+ 	u64 start = 0;
+ 	u64 end = 0;
+ 	u32 pg_cnt = 0;
+@@ -1357,13 +1358,21 @@ int nvmap_assign_pages_to_handle(struct nvmap_client *client,
+ 	end = rng->sz;
+ 
+ 	for (i = rng->start; i <= rng->end; i++) {
+-		end_cur = (end >= hs[i]->size) ? (hs[i]->size - start) : end;
++		/*
++		 * Room left in this handle from offset "start". Bounding
++		 * end_cur by (hs[i]->size - start) instead of hs[i]->size
++		 * prevents copying past the end of the source handle (and past
++		 * the destination pages[] array) when start > 0, i.e. for the
++		 * first handle of the range.
++		 */
++		avail = hs[i]->size - start;
++		end_cur = (end >= avail) ? avail : end;
+ 		err = nvmap_assign_pages_per_handle(hs[i], h, start, start + end_cur, &pg_cnt);
+ 		if (err) {
+ 			nvmap_altfree(pages, nr_page * sizeof(*pages));
+ 			goto err_h;
+ 		}
+-		end -= (hs[i]->size - start);
++		end -= end_cur;
+ 		start = 0;
+ 	}
+ 
+diff --git a/drivers/video/tegra/nvmap/nvmap_ioctl.c b/drivers/video/tegra/nvmap/nvmap_ioctl.c
+index 18dab01f..7178d031 100644
+--- a/drivers/video/tegra/nvmap/nvmap_ioctl.c
++++ b/drivers/video/tegra/nvmap/nvmap_ioctl.c
+@@ -20,6 +20,7 @@
+ #include <linux/highmem.h>
+ #include <linux/mm.h>
+ #include <linux/mman.h>
++#include <linux/overflow.h>
+ 
+ #include <asm/io.h>
+ #include <asm/memory.h>
+@@ -1548,7 +1549,14 @@ static int find_range_of_handles(struct nvmap_handle **hs, u32 nr,
+ 	for (i = 0; i < nr; i++) {
+ 		tot_sz += hs[i]->size;
+ 		if (offs > tot_sz) {
+-			hrange->offs_start -= tot_sz;
++			/*
++			 * Subtract only this handle's size (not the running
++			 * cumulative total) so offs_start stays as the offset
++			 * within the start handle. Using tot_sz here underflows
++			 * once more than one handle is skipped, later driving an
++			 * out-of-bounds source page read.
++			 */
++			hrange->offs_start -= hs[i]->size;
+ 			continue;
+ 		} else {
+ 			rem_sz = tot_sz - offs;
+@@ -1588,6 +1596,7 @@ int nvmap_ioctl_get_fd_from_list(struct file *filp, void __user *arg)
+ 	struct nvmap_handle *h = NULL;
+ 	struct handles_range hrange = {0};
+ 	size_t tot_hs_size = 0;
++	u64 offs_end = 0;
+ 	u32 i, count = 0, flags = 0;
+ 	size_t bytes;
+ 	int err = 0;
+@@ -1604,6 +1613,15 @@ int nvmap_ioctl_get_fd_from_list(struct file *filp, void __user *arg)
+ 		 || !op.size || op.num_handles > U32_MAX / sizeof(u32))
+ 		return -EINVAL;
+ 
++	/*
++	 * The offset must be page-aligned. The destination handle is sized to
++	 * PAGE_ALIGN(size), so a non-page-aligned offset makes the page copy
++	 * span one more page than the destination pages[] array can hold,
++	 * causing a kernel-heap out-of-bounds write.
++	 */
++	if (!IS_ALIGNED(op.offset, PAGE_SIZE))
++		return -EINVAL;
++
+ 	hrange.offs = op.offset;
+ 	hrange.sz = op.size;
+ 
+@@ -1649,8 +1667,13 @@ int nvmap_ioctl_get_fd_from_list(struct file *filp, void __user *arg)
+ 		tot_hs_size += hs[i]->size;
+ 	}
+ 
+-	/* Add check for sizes of all the handles should be > offs and size */
+-	if (tot_hs_size < (hrange.offs + hrange.sz)) {
++	/*
++	 * The combined offset+size must fit within the total size of all the
++	 * supplied handles. Use check_add_overflow() so a crafted (offset, size)
++	 * pair cannot wrap around u64 and slip past this bound.
++	 */
++	if (check_add_overflow(hrange.offs, hrange.sz, &offs_end) ||
++	    tot_hs_size < offs_end) {
+ 		err = -EINVAL;
+ 		goto free_hs;
+ 	}
+-- 
+GitLab
+

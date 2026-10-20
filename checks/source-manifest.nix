@@ -32,7 +32,12 @@ let
     ../patches/linux/0006-net-stmmac-close-reset-irq-window.patch
     ../patches/linux/0007-arm64-dts-tegra194-match-nvethernet-fifo-depths.patch
   ];
-  patches = patchSeries.linux ++ patchSeries.nvidia-oot;
+  securityManifest = builtins.fromJSON (builtins.readFile ../patches/nvidia-r36.5.2/manifest.json);
+  patches =
+    patchSeries.linux
+    ++ patchSeries.nvidia-oot
+    ++ patchSeries.nvmap-security
+    ++ patchSeries.nvgpu-security;
   manifest = pkgs.writeText "jetson-nixos-source-manifest.json" (
     builtins.toJSON {
       linux = linuxSource;
@@ -41,12 +46,20 @@ let
       });
       inherit submodulePaths;
       patches = patchSeries;
+      upstreamSecurity = securityManifest;
       localPatches.linux = map (path: builtins.baseNameOf (toString path)) localLinuxPatches;
     }
   );
 in
 assert builtins.length patchSeries.linux == 9;
 assert builtins.length patchSeries.nvidia-oot == 15;
+assert builtins.length patchSeries.nvmap-security == 3;
+assert builtins.length patchSeries.nvgpu-security == 8;
+assert builtins.length securityManifest.patches == 11;
+assert securityManifest.baseSuperproject == inputs.nvidia-oot.rev;
+assert lib.all (
+  entry: builtins.hashFile "sha256" (../. + "/${entry.patch}") == entry.sha256
+) securityManifest.patches;
 assert builtins.length localLinuxPatches == 7;
 assert builtins.length patches == builtins.length (lib.unique patches);
 assert lib.all (name: builtins.match "[0-9a-f]{40}" inputs.${name}.rev != null) sourceNames;
@@ -64,16 +77,20 @@ pkgs.runCommand "jetson-nixos-source-manifest" { } ''
     test -s ${path}
   '') localLinuxPatches}
 
+  test -s ${../patches/nvidia-oot/0003-watchdog-tegra-adapt-to-context-syscore.patch}
   test -s ${../patches/armbian/LICENSE}
   test -s ${../patches/armbian/NOTICE}
   test -s ${../patches/armbian/nvidia-oot/COPYING}
+  test -s ${../patches/nvidia-r36.5.2/COPYING.GPL-2.0-only}
+  test -s ${../patches/nvidia-r36.5.2/COPYING.MIT}
+  test -s ${../patches/nvidia-r36.5.2/NOTICE}
   test -s ${inputs.nvidia-oot}/Makefile
   test -s ${inputs.nvidia-oot}/nvidia-oot/drivers/video/tegra/nvmap/nvmap_alloc.c
   test -s ${inputs.nvidia-oot}/nvgpu/drivers/gpu/nvgpu/os/linux/linux-dma.c
   test -s ${inputs.nvidia-oot}/nvdisplay/kernel-open/nvidia/nv-pci.c
   test -s ${inputs.jetpack-r36}/mk-overlay.nix
-  test -s ${inputs.jetpack-r36}/sourceinfo/r36.4-debs.json
-  test -s ${inputs.jetpack-r36}/sourceinfo/r36.4.4-gitrepos.json
+  test -s ${inputs.jetpack-r36}/sourceinfo/r36.5-debs.json
+  test -s ${inputs.jetpack-r36}/sourceinfo/r36.5.2-gitrepos.json
   test -s ${inputs.jetpack-r36}/pkgs/containers/r36-l4t.json
   test -s ${inputs.jetpack-r35}/sourceinfo/r35.6-debs.json
   test -s ${inputs.jetpack-r35}/sourceinfo/r35.6.5-gitrepos.json

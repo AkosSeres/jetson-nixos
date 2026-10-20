@@ -1,0 +1,273 @@
+From 2a3a7e289474573d421b120c57b1491fc40a363d Mon Sep 17 00:00:00 2001
+From: srajum <srajum@nvidia.com>
+Date: Wed, 11 Jun 2025 07:14:16 +0000
+Subject: [PATCH] gpu: nvgpu: Fix INT30-C issues
+
+JIRA NVGPU-12338
+Bug 6355239
+
+Change-Id: Ib06d79ee33cb877fb220b74bfa7605c21a8b230f
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3344779
+(cherry picked from commit d628bb6dd72935d2ff7ea24689d2b7b55d7aebaf)
+Signed-off-by: srajum <srajum@nvidia.com>
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3653113
+Reviewed-by: Sagar Kamble <skamble@nvidia.com>
+GVS: buildbot_gerritrpt <buildbot_gerritrpt@nvidia.com>
+Tested-by: Sagar Kamble <skamble@nvidia.com>
+Reviewed-by: Ankur Kishore <ankkishore@nvidia.com>
+---
+ drivers/gpu/nvgpu/common/ce/ce_app.c   | 18 +++++++--
+ drivers/gpu/nvgpu/common/mm/vm_remap.c | 55 +++++++++++++++++++-------
+ drivers/gpu/nvgpu/common/pramin.c      | 31 +++++++++++----
+ 3 files changed, 79 insertions(+), 25 deletions(-)
+
+diff --git a/drivers/gpu/nvgpu/common/ce/ce_app.c b/drivers/gpu/nvgpu/common/ce/ce_app.c
+index 29bd1e719..eddacf3d8 100644
+--- a/drivers/gpu/nvgpu/common/ce/ce_app.c
++++ b/drivers/gpu/nvgpu/common/ce/ce_app.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2018-2022, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (c) 2018-2026, NVIDIA CORPORATION.  All rights reserved.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a
+  * copy of this software and associated documentation files (the "Software"),
+@@ -73,6 +73,7 @@ int nvgpu_ce_execute_ops(struct gk20a *g,
+ 	struct nvgpu_gpfifo_entry gpfifo;
+ 	struct nvgpu_channel_fence fence = {0U, 0U};
+ 	struct nvgpu_fence_type *ce_cmd_buf_fence_out = NULL;
++	u32 offset_size = 0U;
+ 
+ 	if (!ce_app->initialised || ce_app->app_state != NVGPU_CE_ACTIVE) {
+ 		goto end;
+@@ -146,8 +147,19 @@ int nvgpu_ce_execute_ops(struct gk20a *g,
+ 		}
+ 	}
+ 
+-	cmd_buf_gpu_va = (ce_ctx->cmd_buf_mem.gpu_va +
+-			(u64)(cmd_buf_read_offset * sizeof(u32)));
++	if (!nvgpu_safe_mult_u32_return(cmd_buf_read_offset, sizeof(u32),
++			 &offset_size)) {
++		nvgpu_err(g, "Arithmetic Overflow");
++		ret = -EOVERFLOW;
++		goto noop;
++	}
++
++	if (!nvgpu_safe_add_u64_return(ce_ctx->cmd_buf_mem.gpu_va, (u64)offset_size,
++			 &cmd_buf_gpu_va)) {
++		nvgpu_err(g, "Arithmetic Overflow");
++		ret = -EOVERFLOW;
++		goto noop;
++	}
+ 
+ 	dma_copy_class = g->ops.get_litter_value(g, GPU_LIT_DMA_COPY_CLASS);
+ 	method_size = nvgpu_ce_prepare_submit(src_paddr,
+diff --git a/drivers/gpu/nvgpu/common/mm/vm_remap.c b/drivers/gpu/nvgpu/common/mm/vm_remap.c
+index 93f30b8fd..fed11c48f 100644
+--- a/drivers/gpu/nvgpu/common/mm/vm_remap.c
++++ b/drivers/gpu/nvgpu/common/mm/vm_remap.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2017-2023, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (c) 2017-2026, NVIDIA CORPORATION.  All rights reserved.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a
+  * copy of this software and associated documentation files (the "Software"),
+@@ -21,6 +21,7 @@
+  */
+ 
+ #include <nvgpu/gk20a.h>
++#include <nvgpu/log.h>
+ #include <nvgpu/vm.h>
+ #include <nvgpu/vm_area.h>
+ #include <nvgpu/vm_remap.h>
+@@ -167,9 +168,21 @@ static int nvgpu_vm_remap_validate_vpool(struct nvgpu_vm_remap_vpool *vpool,
+ 				struct nvgpu_vm_remap_op *op)
+ {
+ 	u64 first_page = op->virt_offset_in_pages;
+-	u64 last_page = op->virt_offset_in_pages + op->num_pages - 1ULL;
+-	u64 page_size = nvgpu_vm_remap_page_size(op);
++	u64 last_page;
++	u64 page_size;
++
++	if (!nvgpu_safe_add_u64_return(op->virt_offset_in_pages, op->num_pages,
++		 &last_page)) {
++		nvgpu_err(NULL, "Arithmetic Overflow");
++		return -EOVERFLOW;
++	}
+ 
++	if (!nvgpu_safe_sub_u64_return(last_page, 1ULL, &last_page)) {
++		nvgpu_err(NULL, "Arithmetic Overflow");
++		return -EOVERFLOW;
++	}
++
++	page_size = nvgpu_vm_remap_page_size(op);
+ 	if (page_size == 0) {
+ 		return -EINVAL;
+ 	}
+@@ -304,7 +317,7 @@ static struct nvgpu_vm_remap_vpool *nvgpu_vm_remap_get_vpool_locked(
+  * Update physical memory pool reference counts for the specified virtual
+  * pool range of pages.
+  */
+-static void nvgpu_vm_remap_update_pool_refcounts(
++static int nvgpu_vm_remap_update_pool_refcounts(
+ 	struct vm_gk20a *vm,
+ 	struct nvgpu_vm_remap_vpool *vpool,
+ 	u64 first_page,
+@@ -313,10 +326,19 @@ static void nvgpu_vm_remap_update_pool_refcounts(
+ 	bool *l2_flushed)
+ {
+ 	u64 pgnum;
++	int err = 0;
++	u64 pages = 0U;
+ 
+-	if (vpool->num_pages < first_page + num_pages) {
++	if (!nvgpu_safe_add_u64_return(first_page, num_pages, &pages)) {
++		nvgpu_err(NULL, "Arithmetic Overflow");
++		err = -EOVERFLOW;
++		return err;
++	}
++
++	if (vpool->num_pages < pages) {
+ 		nvgpu_err(gk20a_from_vm(vm), "bad vpool range; update skipped");
+-		return;
++		err = -EINVAL;
++		return err;
+ 	}
+ 
+ 	for (pgnum = first_page; pgnum < first_page + num_pages; pgnum++) {
+@@ -341,6 +363,7 @@ static void nvgpu_vm_remap_update_pool_refcounts(
+ 			(void) nvgpu_vm_remap_mpool_get(new_pool);
+ 		}
+ 	}
++	return err;
+ }
+ 
+ /*
+@@ -528,14 +551,18 @@ static int nvgpu_vm_remap_execute_remaps(struct vm_gk20a *vm,
+ 	 */
+ 	for (i = 0; i < *num_ops; i++) {
+ 		op = &ops[i];
+-		nvgpu_vm_remap_update_pool_refcounts(
+-			vm,
+-			vpool,
+-			nvgpu_safe_sub_u64(op->virt_offset_in_pages,
+-					vpool->base_offset_in_pages),
+-			op->num_pages,
+-			mpools[i],
+-			l2_flushed);
++		err = nvgpu_vm_remap_update_pool_refcounts(
++				vm,
++				vpool,
++				nvgpu_safe_sub_u64(op->virt_offset_in_pages,
++						vpool->base_offset_in_pages),
++				op->num_pages,
++				mpools[i],
++				l2_flushed);
++		if (err != 0) {
++			nvgpu_err(g, "nvgpu_vm_remap_update_pool_refcounts failed to return 0");
++			break;
++		}
+ 	}
+ 
+ 	return err;
+diff --git a/drivers/gpu/nvgpu/common/pramin.c b/drivers/gpu/nvgpu/common/pramin.c
+index 12e40a735..fb4058ef7 100644
+--- a/drivers/gpu/nvgpu/common/pramin.c
++++ b/drivers/gpu/nvgpu/common/pramin.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2017-2019, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (c) 2017-2026, NVIDIA CORPORATION.  All rights reserved.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a
+  * copy of this software and associated documentation files (the "Software"),
+@@ -32,7 +32,7 @@
+  * This typedef is for functions that get called during the access_batched()
+  * operation.
+  */
+-typedef void (*pramin_access_batch_fn)(struct gk20a *g, u64 start, u64 words,
++typedef int (*pramin_access_batch_fn)(struct gk20a *g, u64 start, u64 words,
+ 				       u32 **arg);
+ 
+ /*
+@@ -103,7 +103,7 @@ static void nvgpu_pramin_access_batched(struct gk20a *g, struct nvgpu_mem *mem,
+ 	}
+ }
+ 
+-static void nvgpu_pramin_access_batch_rd_n(struct gk20a *g,
++static int nvgpu_pramin_access_batch_rd_n(struct gk20a *g,
+ 					   u64 start, u64 words, u32 **arg)
+ {
+ 	u32 *dest_u32 = *arg;
+@@ -112,10 +112,14 @@ static void nvgpu_pramin_access_batch_rd_n(struct gk20a *g,
+ 	while (words != 0U) {
+ 		words--;
+ 		*dest_u32++ = nvgpu_readl(g, r);
+-		r += U32(sizeof(u32));
++		if (!nvgpu_safe_add_u64_return(r, U32(sizeof(u32)), &r)) {
++			nvgpu_err(g, "Arithmetic Overflow");
++			return -EOVERFLOW;
++		}
+ 	}
+ 
+ 	*arg = dest_u32;
++	return 0;
+ }
+ 
+ void nvgpu_pramin_rd_n(struct gk20a *g, struct nvgpu_mem *mem,
+@@ -127,7 +131,7 @@ void nvgpu_pramin_rd_n(struct gk20a *g, struct nvgpu_mem *mem,
+ 			nvgpu_pramin_access_batch_rd_n, &dest_u32);
+ }
+ 
+-static void nvgpu_pramin_access_batch_wr_n(struct gk20a *g,
++static int nvgpu_pramin_access_batch_wr_n(struct gk20a *g,
+ 					   u64 start, u64 words, u32 **arg)
+ {
+ 	u32 *src_u32 = *arg;
+@@ -136,10 +140,14 @@ static void nvgpu_pramin_access_batch_wr_n(struct gk20a *g,
+ 	while (words != 0U) {
+ 		words--;
+ 		nvgpu_writel_relaxed(g, r, *src_u32++);
+-		r += U32(sizeof(u32));
++		if (!nvgpu_safe_add_u64_return(r, U32(sizeof(u32)), &r)) {
++			nvgpu_err(g, "Arithmetic Overflow");
++			return -EOVERFLOW;
++		}
+ 	}
+ 
+ 	*arg = src_u32;
++	return 0;
+ }
+ 
+ void nvgpu_pramin_wr_n(struct gk20a *g, struct nvgpu_mem *mem,
+@@ -151,17 +159,24 @@ void nvgpu_pramin_wr_n(struct gk20a *g, struct nvgpu_mem *mem,
+ 			nvgpu_pramin_access_batch_wr_n, &src_u32);
+ }
+ 
+-static void nvgpu_pramin_access_batch_set(struct gk20a *g,
++static int nvgpu_pramin_access_batch_set(struct gk20a *g,
+ 					  u64 start, u64 words, u32 **arg)
+ {
+ 	u32 repeat = **arg;
+ 	u64 r = start;
++	int err = 0;
+ 
+ 	while (words != 0U) {
+ 		words--;
+ 		nvgpu_writel_relaxed(g, r, repeat);
+-		r += U32(sizeof(u32));
++		if (!nvgpu_safe_add_u64_return(r, U32(sizeof(u32)), &r)) {
++			nvgpu_err(g, "Arithmetic Overflow");
++			err = -EOVERFLOW;
++			return err;
++		}
+ 	}
++
++	return err;
+ }
+ 
+ void nvgpu_pramin_memset(struct gk20a *g, struct nvgpu_mem *mem,
+-- 
+GitLab
+

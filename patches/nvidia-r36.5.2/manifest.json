@@ -1,0 +1,109 @@
+{
+  "release": "NVIDIA Jetson Linux R36.5.2",
+  "baseSuperproject": "3428d01926de97ca8b0f25fe6edd9c76e19472a1",
+  "baseGitlinks": {
+    "nvidia-oot": "ccf7646c57462776fe1093af6643c54653f59861",
+    "nvgpu": "d530a48d64f9ad3020d9f3307f53e8dde8e3fba1"
+  },
+  "patches": [
+    {
+      "component": "nvmap",
+      "targetDirectory": "nvidia-oot",
+      "commit": "311f93c636128bd0ee7cb944c843c58f71e0e0f7",
+      "upstreamPatch": "https://gitlab.com/nvidia/nv-tegra/linux-nv-oot/-/commit/311f93c636128bd0ee7cb944c843c58f71e0e0f7.patch",
+      "patch": "patches/nvidia-r36.5.2/nvmap/0001-nvmap-check-handle-before-dereference.patch",
+      "sha256": "7e3cc7711130fc82cd83ffedf1d0c67fd3587ab0bb446ecf3ffa82f7785a7655",
+      "bytes": 1874
+    },
+    {
+      "component": "nvmap",
+      "targetDirectory": "nvidia-oot",
+      "commit": "16018497e0814ea9f54be4bc8642c1ff83a07a19",
+      "upstreamPatch": "https://gitlab.com/nvidia/nv-tegra/linux-nv-oot/-/commit/16018497e0814ea9f54be4bc8642c1ff83a07a19.patch",
+      "patch": "patches/nvidia-r36.5.2/nvmap/0002-nvmap-bound-fd-from-list-ranges.patch",
+      "sha256": "0da54e312fbd61299e11abfcd2eb8fda6b74c6f8b46560f1c5c99d01796f56ee",
+      "bytes": 6049
+    },
+    {
+      "component": "nvmap",
+      "targetDirectory": "nvidia-oot",
+      "commit": "4adf488f7eba09f84ca2c50ab2ad5aedfdca37f3",
+      "upstreamPatch": "https://gitlab.com/nvidia/nv-tegra/linux-nv-oot/-/commit/4adf488f7eba09f84ca2c50ab2ad5aedfdca37f3.patch",
+      "patch": "patches/nvidia-r36.5.2/nvmap/0003-nvmap-handle-boundary-offsets.patch",
+      "sha256": "3bf4e150425bef5d8db2763f681fe3b31def373088171cad36f12014829bbd95",
+      "bytes": 1486
+    },
+    {
+      "component": "nvgpu",
+      "targetDirectory": "nvgpu",
+      "commit": "e24b540b4cd20a610fb24f606371c1e3a130374d",
+      "upstreamPatch": "https://gitlab.com/nvidia/nv-tegra/linux-nvgpu/-/commit/e24b540b4cd20a610fb24f606371c1e3a130374d.patch",
+      "patch": "patches/nvidia-r36.5.2/nvgpu/0001-nvgpu-safe-arithmetic-error-helpers.patch",
+      "sha256": "56df038d34e6353fe16290b430388015b1304e97a22c750f7734166bf2da5f21",
+      "bytes": 5458
+    },
+    {
+      "component": "nvgpu",
+      "targetDirectory": "nvgpu",
+      "commit": "6910f7b72e7ad5369344d04ac4cd1c33a53cec0e",
+      "upstreamPatch": "https://gitlab.com/nvidia/nv-tegra/linux-nvgpu/-/commit/6910f7b72e7ad5369344d04ac4cd1c33a53cec0e.patch",
+      "patch": "patches/nvidia-r36.5.2/nvgpu/0002-nvgpu-check-arithmetic-errors.patch",
+      "sha256": "9b6dd0ba3fd95b7f010b906c1ea784ab548241d18ea391a391def032f4045e9f",
+      "bytes": 2856
+    },
+    {
+      "component": "nvgpu",
+      "targetDirectory": "nvgpu",
+      "commit": "0f5deed7e8176f9a371428ab93bd4755af45522a",
+      "upstreamPatch": "https://gitlab.com/nvidia/nv-tegra/linux-nvgpu/-/commit/0f5deed7e8176f9a371428ab93bd4755af45522a.patch",
+      "patch": "patches/nvidia-r36.5.2/nvgpu/0003-nvgpu-check-as-alloc-size.patch",
+      "sha256": "7c077c72f72509e9f2a6c006244e7073fd76192d6a4d27f5c7ee96d51c51cb25",
+      "bytes": 2129
+    },
+    {
+      "component": "nvgpu",
+      "targetDirectory": "nvgpu",
+      "commit": "2a3a7e289474573d421b120c57b1491fc40a363d",
+      "upstreamPatch": "https://gitlab.com/nvidia/nv-tegra/linux-nvgpu/-/commit/2a3a7e289474573d421b120c57b1491fc40a363d.patch",
+      "patch": "patches/nvidia-r36.5.2/nvgpu/0004-nvgpu-check-ce-remap-pramin-arithmetic.patch",
+      "sha256": "aa5ae634f0ffe7fbf1ef0cbf419063729a1a3e825208485dd92769ac4bcd9889",
+      "bytes": 8630
+    },
+    {
+      "component": "nvgpu",
+      "targetDirectory": "nvgpu",
+      "commit": "d6b7c060fadf754d11398f967bf89826ecbd5010",
+      "upstreamPatch": "https://gitlab.com/nvidia/nv-tegra/linux-nvgpu/-/commit/d6b7c060fadf754d11398f967bf89826ecbd5010.patch",
+      "patch": "patches/nvidia-r36.5.2/nvgpu/0005-nvgpu-validate-pool-page-count.patch",
+      "sha256": "24b3fab1faa5492061a2a32432bf9478029bc8f559954edd048250e020dbca78",
+      "bytes": 3393
+    },
+    {
+      "component": "nvgpu",
+      "targetDirectory": "nvgpu",
+      "commit": "21e83c7c8b85cef66aa48787072e7f8e21bf254e",
+      "upstreamPatch": "https://gitlab.com/nvidia/nv-tegra/linux-nvgpu/-/commit/21e83c7c8b85cef66aa48787072e7f8e21bf254e.patch",
+      "patch": "patches/nvidia-r36.5.2/nvgpu/0006-nvgpu-safe-u64-multiplication-helper.patch",
+      "sha256": "84a837a4efa5285960774f0d90bc9070fbdc21f08f9c7896e5ed58d21f94327c",
+      "bytes": 4873
+    },
+    {
+      "component": "nvgpu",
+      "targetDirectory": "nvgpu",
+      "commit": "1a688bc56fe348cca5e37ba7e2c993a78c44e355",
+      "upstreamPatch": "https://gitlab.com/nvidia/nv-tegra/linux-nvgpu/-/commit/1a688bc56fe348cca5e37ba7e2c993a78c44e355.patch",
+      "patch": "patches/nvidia-r36.5.2/nvgpu/0007-nvgpu-safe-u64-arithmetic-error-helpers.patch",
+      "sha256": "5b5a45f1785a017e2f195a2d681616c0ac3918c1dd0b100b3ccd6ff46a1b849e",
+      "bytes": 2667
+    },
+    {
+      "component": "nvgpu",
+      "targetDirectory": "nvgpu",
+      "commit": "d23f41442f9d2a7829b9d7cec320ce54a844dd65",
+      "upstreamPatch": "https://gitlab.com/nvidia/nv-tegra/linux-nvgpu/-/commit/d23f41442f9d2a7829b9d7cec320ce54a844dd65.patch",
+      "patch": "patches/nvidia-r36.5.2/nvgpu/0008-nvgpu-check-ltc-arithmetic-and-u64-subtraction.patch",
+      "sha256": "aff41dfbc605bad9755ad5d8b14241ef265eee774f24ad9cb1f4c52aa3995851",
+      "bytes": 10498
+    }
+  ]
+}

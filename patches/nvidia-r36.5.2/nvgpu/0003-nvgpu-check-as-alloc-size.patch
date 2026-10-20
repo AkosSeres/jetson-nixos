@@ -1,0 +1,62 @@
+From 0f5deed7e8176f9a371428ab93bd4755af45522a Mon Sep 17 00:00:00 2001
+From: Shashank Singh <shashsingh@nvidia.com>
+Date: Sat, 27 Jun 2026 11:14:51 +0000
+Subject: [PATCH] gpu: nvgpu: fix out of range value without nvgpu safe APIs
+
+Check pages field of AS_ALLOC ioctl for out of range value without using
+nvgpu_safe_* APIs.
+
+Jira NVGPU-12452
+Bug 6355239
+
+Change-Id: Ibcde908300fc0b9501b40a75a02561ac7bce15c8
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3364926
+(cherry picked from commit 76cc950f12a6f91ce5ddb69b473ca301498bd6fa)
+Signed-off-by: Shashank Singh <shashsingh@nvidia.com>
+Reviewed-on: https://git-master.nvidia.com/r/c/linux-nvgpu/+/3653112
+Tested-by: Sagar Kamble <skamble@nvidia.com>
+Reviewed-by: Sagar Kamble <skamble@nvidia.com>
+GVS: buildbot_gerritrpt <buildbot_gerritrpt@nvidia.com>
+Reviewed-by: Ankur Kishore <ankkishore@nvidia.com>
+---
+ drivers/gpu/nvgpu/common/mm/vm_area.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/gpu/nvgpu/common/mm/vm_area.c b/drivers/gpu/nvgpu/common/mm/vm_area.c
+index 604f633f5..710a80e93 100644
+--- a/drivers/gpu/nvgpu/common/mm/vm_area.c
++++ b/drivers/gpu/nvgpu/common/mm/vm_area.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2017-2023, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (c) 2017-2026, NVIDIA CORPORATION.  All rights reserved.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a
+  * copy of this software and associated documentation files (the "Software"),
+@@ -140,16 +140,19 @@ static int nvgpu_vm_area_alloc_memory(struct nvgpu_allocator *vma, u64 our_addr,
+ 			u64 *vaddr_start_ptr)
+ {
+ 	u64 vaddr_start = 0;
++	u64 va_size;
++
++	if (nvgpu_safe_mult_u64_return(pages, (u64)page_size, &va_size) == false) {
++		return -EINVAL;
++	}
+ 
+ 	if ((flags & NVGPU_VM_AREA_ALLOC_FIXED_OFFSET) != 0U) {
+ 		vaddr_start = nvgpu_alloc_fixed(vma, our_addr,
+-						pages *
+-						(u64)page_size,
++						va_size,
+ 						page_size);
+ 	} else {
+ 		vaddr_start = nvgpu_alloc_pte(vma,
+-					      pages *
+-					      (u64)page_size,
++					      va_size,
+ 					      page_size);
+ 	}
+ 
+-- 
+GitLab
+

@@ -20,17 +20,17 @@
     "jetpack-r36": {
       "flake": false,
       "locked": {
-        "lastModified": 1771106805,
-        "narHash": "sha256-MF9EWZ8T7xc0Zxbnn0GmL54Rg11EreiSGDXX/EBykWg=",
+        "lastModified": 1792082511,
+        "narHash": "sha256-UpzY/tw6OedbM7acTCu9lTgL9TMIu3KkEfiVB475s+g=",
         "owner": "anduril",
         "repo": "jetpack-nixos",
-        "rev": "98a83b7d737ed636439c7fdc628a875eaf4cce15",
+        "rev": "d4c4a515ae57a3c85fa3fb17e02a8fa1fe66a600",
         "type": "github"
       },
       "original": {
         "owner": "anduril",
         "repo": "jetpack-nixos",
-        "rev": "98a83b7d737ed636439c7fdc628a875eaf4cce15",
+        "rev": "d4c4a515ae57a3c85fa3fb17e02a8fa1fe66a600",
         "type": "github"
       }
     },
