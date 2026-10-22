@@ -91,6 +91,10 @@
       );
 
       checks = forAllSystems (system: {
+        nvgpu-usermode-retry = import ./checks/nvgpu-usermode-retry.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+          source = inputs.nvidia-oot;
+        };
         uefi-dtb = import ./checks/uefi-dtb.nix {
           pkgs = nixpkgs.legacyPackages.${system};
         };

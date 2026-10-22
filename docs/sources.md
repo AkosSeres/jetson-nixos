@@ -233,6 +233,11 @@ Local OOT patches run after the fifteen reference patches:
   [upstream API change](https://github.com/gregkh/linux/commit/ff422b8597c287dbbac1d444330770114131dfba).
 - `patches/nvgpu/0001-*` fixes matching-free and partial scatterlist cleanup in
   the pinned nvgpu tree, retaining the original author's attribution.
+- `patches/nvgpu/0002-*` resets the usermode-mapping retry error each pass so
+  removal of the final control entry after contention cannot leave runtime PM
+  spinning on a stale `-EBUSY`. The `nvgpu-usermode-retry` flake check compiles
+  the actual extracted function and upstream list helpers with host-only mocks;
+  this does not establish hardware recovery or any incident's exact execution path.
 
 ### NVIDIA R36.5.2 security backports
 
