@@ -33,6 +33,7 @@ kernel.stdenv.mkDerivation {
     ../patches/nvidia-oot/0001-firmware-tegra-make-hv-bpmp-optional.patch
     ../patches/nvidia-oot/0002-headless-suppress-optional-providers.patch
     ../patches/nvgpu/0001-dma-clean-up-failed-system-memory-allocations.patch
+    ../patches/nvgpu/0002-reset-usermode-mapping-retry-error.patch
   ];
   patchFlags = [ "-p1" ];
 
