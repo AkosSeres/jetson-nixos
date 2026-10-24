@@ -34,6 +34,7 @@ kernel.stdenv.mkDerivation {
     ../patches/nvidia-oot/0002-headless-suppress-optional-providers.patch
     ../patches/nvidia-oot/0003-watchdog-tegra-adapt-to-context-syscore.patch
     ../patches/nvgpu/0001-dma-clean-up-failed-system-memory-allocations.patch
+    ../patches/nvgpu/0002-reset-usermode-mapping-retry-error.patch
   ];
   patchFlags = [ "-p1" ];
 

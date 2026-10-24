@@ -1,0 +1,27 @@
+From: OpenAI Codex <noreply@openai.com>
+Subject: [PATCH] gpu: nvgpu: reset usermode mapping error before each retry
+SPDX-License-Identifier: GPL-2.0-only
+
+If alter_usermode_mapping() returns -EBUSY and the final control entry is
+removed before the next pass, the empty list leaves err unchanged. The
+power-management worker then retries forever even though no mappings remain.
+
+Reset err for each traversal under ctrl_privs_lock. Preserve the mmap trylock
+and mapping cleanup introduced by NVIDIA's original deadlock fix.
+
+Target: OE4T linux-nvgpu d530a48d64f9ad3020d9f3307f53e8dde8e3fba1,
+relative to the nvidia-kernel-oot superproject root.
+Fixes: 1dd3e0761c19 ("gpu: nvgpu: fix the usermode mappings deadlock during railgate and munmap")
+Upstream-Status: Pending
+
+diff --git a/nvgpu/drivers/gpu/nvgpu/os/linux/ioctl_ctrl.c b/nvgpu/drivers/gpu/nvgpu/os/linux/ioctl_ctrl.c
+--- a/nvgpu/drivers/gpu/nvgpu/os/linux/ioctl_ctrl.c
++++ b/nvgpu/drivers/gpu/nvgpu/os/linux/ioctl_ctrl.c
+@@ -2958,6 +2958,7 @@ static void alter_usermode_mappings(struct gk20a *g, bool poweroff)
+ 
+ 	do {
+ 		nvgpu_mutex_acquire(&l->ctrl_privs_lock);
++		err = 0;
+ 		nvgpu_list_for_each_entry(priv, &l->ctrl_privs,
+ 				gk20a_ctrl_priv, list) {
+ 			err = alter_usermode_mapping(g, priv, poweroff);
